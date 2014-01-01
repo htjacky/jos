@@ -39,7 +39,12 @@ i386_init(void)
 	int x = 1, y = 3, z = 4;
 	cprintf("x %d, y %x, z %d\n", x, y, z);
 
+	// Jacky 140101: Test 11 of lab1
+	unsigned int i = 0x00646c72;
+	cprintf("H%x Wo%s", 57616, &i);
 
+	// Jacky 140101: Test 15 of lab1
+	cprintf("x=%d y=%d", 3);
 
 	// Test the stack backtrace function (lab 1 only)
 	test_backtrace(5);

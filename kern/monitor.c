@@ -23,6 +23,7 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "monbacktrace", "Monitor the back trace of a function", mon_backtrace}
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -58,7 +59,22 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
-	// Your code here.
+	// Jacky 20140101: Implement the backtrace monitor function
+	int i;
+	uint32_t ebp = read_ebp();
+	cprintf("Stack backtrace:\n");
+	// The key of args is print the every single byte of (ebp) - ebp
+	while(ebp != 0) {
+		cprintf("ebp %x eip %x args ", ebp, *(int*)(ebp+4));
+		for (i = 1; i < 20; i++) {
+			if (*(int*)ebp != ((ebp + i*4))) {
+				cprintf("%08x ", *(int*)((ebp+4)+i*4));
+			} else 
+				break;
+		}
+		cprintf("\n");
+		ebp = (*(int*)(ebp));
+	}
 	return 0;
 }
 
