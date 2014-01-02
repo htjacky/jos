@@ -7,10 +7,12 @@ ENTRY(_start)
 
 SECTIONS
 {
-	/* Load the kernel at this address: "." means the current address */
+	/* Link the kernel at this address: "." means the current address */
 	. = 0xF0100000;
 
-	.text : {
+	/* AT(...) gives the load address of this section, which tells
+	   the boot loader where to load the kernel in physical memory */
+	.text : AT(0x100000) {
 		*(.text .stub .text.* .gnu.linkonce.t.*)
 	}
 

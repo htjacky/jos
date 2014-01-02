@@ -18,15 +18,14 @@
  * so that -E_NO_MEM and E_NO_MEM are equivalent.
  */
 
-static const char * const error_string[MAXERROR + 1] =
+static const char * const error_string[MAXERROR] =
 {
-	NULL,
-	"unspecified error",
-	"bad environment",
-	"invalid parameter",
-	"out of memory",
-	"out of environments",
-	"segmentation fault",
+	[E_UNSPECIFIED]	= "unspecified error",
+	[E_BAD_ENV]	= "bad environment",
+	[E_INVAL]	= "invalid parameter",
+	[E_NO_MEM]	= "out of memory",
+	[E_NO_FREE_ENV]	= "out of environments",
+	[E_FAULT]	= "segmentation fault",
 };
 
 /*
@@ -166,7 +165,7 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 			err = va_arg(ap, int);
 			if (err < 0)
 				err = -err;
-			if (err > MAXERROR || (p = error_string[err]) == NULL)
+			if (err >= MAXERROR || (p = error_string[err]) == NULL)
 				printfmt(putch, putdat, "error %d", err);
 			else
 				printfmt(putch, putdat, "%s", p);

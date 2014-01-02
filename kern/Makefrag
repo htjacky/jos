@@ -14,6 +14,7 @@ KERN_LDFLAGS := $(LDFLAGS) -T kern/kernel.ld -nostdlib
 # We also snatch the use of a couple handy source files
 # from the lib directory, to avoid gratuitous code duplication.
 KERN_SRCFILES :=	kern/entry.S \
+			kern/entrypgdir.c \
 			kern/init.c \
 			kern/console.c \
 			kern/monitor.c \
@@ -38,7 +39,7 @@ KERN_BINFILES :=
 
 KERN_OBJFILES := $(patsubst %.c, $(OBJDIR)/%.o, $(KERN_SRCFILES))
 KERN_OBJFILES := $(patsubst %.S, $(OBJDIR)/%.o, $(KERN_OBJFILES))
-KERN_OBJFILES := $(patsubst obj/lib/%, obj/kern/%, $(KERN_OBJFILES))
+KERN_OBJFILES := $(patsubst $(OBJDIR)/lib/%, $(OBJDIR)/kern/%, $(KERN_OBJFILES))
 
 KERN_BINFILES := $(patsubst %, $(OBJDIR)/%, $(KERN_BINFILES))
 

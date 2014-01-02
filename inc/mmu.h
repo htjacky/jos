@@ -20,14 +20,14 @@
 // |      Index     |      Index     |                     |
 // +----------------+----------------+---------------------+
 //  \--- PDX(la) --/ \--- PTX(la) --/ \---- PGOFF(la) ----/
-//  \----------- PPN(la) -----------/
+//  \----------- VPN(la) -----------/
 //
-// The PDX, PTX, PGOFF, and PPN macros decompose linear addresses as shown.
+// The PDX, PTX, PGOFF, and VPN macros decompose linear addresses as shown.
 // To construct a linear address la from PDX(la), PTX(la), and PGOFF(la),
 // use PGADDR(PDX(la), PTX(la), PGOFF(la)).
 
 // page number field of address
-#define PPN(la)		(((uintptr_t) (la)) >> PTXSHIFT)
+#define PPN(pa)		(((uintptr_t) (pa)) >> PTXSHIFT)
 #define VPN(la)		PPN(la)		// used to index into vpt[]
 
 // page directory index
@@ -65,16 +65,16 @@
 #define PTE_A		0x020	// Accessed
 #define PTE_D		0x040	// Dirty
 #define PTE_PS		0x080	// Page Size
-#define PTE_MBZ		0x180	// Bits must be zero
+#define PTE_G		0x100	// Global
 
 // The PTE_AVAIL bits aren't used by the kernel or interpreted by the
 // hardware, so user processes are allowed to set them arbitrarily.
 #define PTE_AVAIL	0xE00	// Available for software use
 
-// Only flags in PTE_USER may be used in system calls.
-#define PTE_USER	(PTE_AVAIL | PTE_P | PTE_W | PTE_U)
+// Only flags in PTE_ALLOWED may be used in system calls.
+#define PTE_ALLOWED	(PTE_AVAIL | PTE_P | PTE_W | PTE_U)
 
-// address in page table entry
+// Address in page table or page directory entry
 #define PTE_ADDR(pte)	((physaddr_t) (pte) & ~0xFFF)
 
 // Control Register flags
@@ -269,6 +269,13 @@ struct Gatedesc {
 
 // Set up a normal interrupt/trap gate descriptor.
 // - istrap: 1 for a trap (= exception) gate, 0 for an interrupt gate.
+    //   see section 9.6.1.3 of the i386 reference: "The difference between
+    //   an interrupt gate and a trap gate is in the effect on IF (the
+    //   interrupt-enable flag). An interrupt that vectors through an
+    //   interrupt gate resets IF, thereby preventing other interrupts from
+    //   interfering with the current interrupt handler. A subsequent IRET
+    //   instruction restores IF to the value in the EFLAGS image on the
+    //   stack. An interrupt through a trap gate does not change IF."
 // - sel: Code segment selector for interrupt/trap handler
 // - off: Offset in code segment for interrupt/trap handler
 // - dpl: Descriptor Privilege Level -
