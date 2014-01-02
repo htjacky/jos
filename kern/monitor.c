@@ -63,7 +63,8 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	// Jacky 20140101: Implement the backtrace monitor function
 	int i;
 	uint32_t ebp = read_ebp();
-	uint32_t eip; 
+	uint32_t eip;
+	char fn_name[256];
 	struct Eipdebuginfo info;
 	cprintf("Stack backtrace:\n");
 	// The key of args is print the every single byte of (ebp) - ebp
@@ -77,9 +78,11 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 				break;
 		}
 		cprintf("\n");
-		debuginfo_eip((uintptr_t)eip, &info); 
+		debuginfo_eip((uintptr_t)eip, &info);
+		memmove(fn_name,info.eip_fn_name,info.eip_fn_namelen);
+		fn_name[info.eip_fn_namelen] = '\0';
 		cprintf("%s:%d: %s+%x \n",info.eip_file, info.eip_line, 
-				info.eip_fn_name, eip - info.eip_fn_addr);
+				fn_name, eip - info.eip_fn_addr);
 		ebp = (*(int*)(ebp));
 	}
 	return 0;
