@@ -139,8 +139,8 @@ monitor(struct Trapframe *tf)
 {
 	char *buf;
 
-	cprintf("Welcome to the JOS kernel monitor!\n");
-	cprintf("Type 'help' for a list of commands.\n");
+	cprintf("%CredWelcome %Cgrnto the JOS kernel monitor!\n");
+	cprintf("Type 'help' %C142for a list of commands.\n");
 
 
 	while (1) {

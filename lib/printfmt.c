@@ -28,6 +28,18 @@ static const char * const error_string[MAXERROR] =
 	[E_FAULT]	= "segmentation fault",
 };
 
+// Jacky 140102: Add color print
+#define COLOR_WHT 7;
+#define COLOR_BLK 1;
+#define COLOR_GRN 2;
+#define COLOR_RED 4;
+#define COLOR_GRY 8;
+#define COLOR_YLW 15;
+#define COLOR_ORG 12;
+#define COLOR_PUR 6;
+#define COLOR_CYN 11;
+
+int ch_color = COLOR_WHT;
 /*
  * Print a number (base <= 16) in reverse order,
  * using specified putch function and associated pointer putdat.
@@ -87,6 +99,7 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 	unsigned long long num;
 	int base, lflag, width, precision, altflag;
 	char padc;
+	char sel_c[4];	// Jacky 140102: for color print
 
 	while (1) {
 		while ((ch = *(unsigned char *) fmt++) != '%') {
@@ -160,6 +173,28 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 			putch(va_arg(ap, int), putdat);
 			break;
 
+		// Jacky 140102: color control
+		case 'C':
+			memmove(sel_c, fmt, sizeof(unsigned char) *3);
+			sel_c[3] = '\0';
+			fmt += 3;
+
+			if(sel_c[0] >= '0' && sel_c[0] <= '9') {
+				// it is a color specifier
+				ch_color = ((sel_c[0] - '0')*10 + sel_c[1] - '0')*10 + sel_c[2] - '0';
+			} else {
+				// it is a explicit color selector
+				if (strcmp(sel_c,"wht") == 0) ch_color = COLOR_WHT;
+				if (strcmp(sel_c,"blk") == 0) ch_color = COLOR_BLK;
+				if (strcmp(sel_c,"grn") == 0) ch_color = COLOR_GRN;
+				if (strcmp(sel_c,"red") == 0) ch_color = COLOR_RED;
+				if (strcmp(sel_c,"gry") == 0) ch_color = COLOR_GRY;
+				if (strcmp(sel_c,"ylw") == 0) ch_color = COLOR_YLW;
+				if (strcmp(sel_c,"org") == 0) ch_color = COLOR_ORG;
+				if (strcmp(sel_c,"pur") == 0) ch_color = COLOR_PUR;
+				if (strcmp(sel_c,"cyn") == 0) ch_color = COLOR_CYN;
+			}
+			break;
 		// error message
 		case 'e':
 			err = va_arg(ap, int);
