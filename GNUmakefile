@@ -7,25 +7,13 @@
 #
 OBJDIR := obj
 
-ifdef LAB
-SETTINGLAB := true
-else
 -include conf/lab.mk
-endif
 
 -include conf/env.mk
-
-ifndef SOL
-SOL := 0
-endif
-ifndef LABADJUST
-LABADJUST := 0
-endif
 
 ifndef LABSETUP
 LABSETUP := ./
 endif
-
 
 TOP = .
 
@@ -35,9 +23,7 @@ TOP = .
 # installed as 'i386-jos-elf-*', if one exists.  If the host tools ('gcc',
 # 'objdump', and so forth) compile for a 32-bit x86 ELF target, that will
 # be detected as well.  If you have the right compiler toolchain installed
-# using a different name, set GCCPREFIX explicitly by doing
-#
-#	make 'GCCPREFIX=i386-jos-elf-' gccsetup
+# using a different name, set GCCPREFIX explicitly in conf/env.mk
 
 # try to infer the correct GCCPREFIX
 ifndef GCCPREFIX
@@ -55,8 +41,28 @@ GCCPREFIX := $(shell if i386-jos-elf-objdump -i 2>&1 | grep '^elf32-i386$$' >/de
 	echo "***" 1>&2; exit 1; fi)
 endif
 
+# try to infer the correct QEMU
+ifndef QEMU
+QEMU := $(shell if which qemu > /dev/null; \
+	then echo qemu; exit; \
+	else \
+	qemu=/Applications/Q.app/Contents/MacOS/i386-softmmu.app/Contents/MacOS/i386-softmmu; \
+	if test -x $$qemu; then echo $$qemu; exit; fi; fi; \
+	echo "***" 1>&2; \
+	echo "*** Error: Couldn't find a working QEMU executable." 1>&2; \
+	echo "*** Is the directory containing the qemu binary in your PATH" 1>&2; \
+	echo "*** or have you tried setting the QEMU variable in conf/env.mk?" 1>&2; \
+	echo "***" 1>&2; exit 1)
+endif
+
+# try to generate a unique GDB port
+GDBPORT	:= $(shell expr `id -u` % 5000 + 25000)
+# QEMU's gdb stub command line changed in 0.11
+QEMUGDB = $(shell if $(QEMU) -nographic -help | grep -q '^-gdb'; \
+	then echo "-gdb tcp::$(GDBPORT)"; \
+	else echo "-s -p $(GDBPORT)"; fi)
+
 CC	:= $(GCCPREFIX)gcc -pipe
-GCC_LIB := $(shell $(CC) -print-libgcc-file-name)
 AS	:= $(GCCPREFIX)as
 AR	:= $(GCCPREFIX)ar
 LD	:= $(GCCPREFIX)ld
@@ -72,10 +78,20 @@ PERL	:= perl
 # Compiler flags
 # -fno-builtin is required to avoid refs to undefined functions in the kernel.
 # Only optimize to -O1 to discourage inlining, which complicates backtraces.
-CFLAGS	:= $(CFLAGS) $(DEFS) $(LABDEFS) -O -fno-builtin -I$(TOP) -MD -Wall -Wno-format -Wno-unused -Werror -gstabs
+CFLAGS := $(CFLAGS) $(DEFS) $(LABDEFS) -O1 -fno-builtin -I$(TOP) -MD 
+CFLAGS += -fno-omit-frame-pointer
+CFLAGS += -Wall -Wno-format -Wno-unused -Werror -gstabs -m32
+
+# Add -fno-stack-protector if the option exists.
+CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
+
+# Common linker flags
+LDFLAGS := -m elf_i386
 
 # Linker flags for JOS user programs
 ULDFLAGS := -T user/user.ld
+
+GCC_LIB := $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
 
 # Lists that the */Makefrag makefile fragments will add to
 OBJDIRS :=
@@ -91,7 +107,8 @@ all:
 
 # make it so that no intermediate .o files are ever deleted
 .PRECIOUS: %.o $(OBJDIR)/boot/%.o $(OBJDIR)/kern/%.o \
-	$(OBJDIR)/lib/%.o $(OBJDIR)/fs/%.o $(OBJDIR)/user/%.o
+	   $(OBJDIR)/lib/%.o $(OBJDIR)/fs/%.o $(OBJDIR)/net/%.o \
+	   $(OBJDIR)/user/%.o
 
 KERN_CFLAGS := $(CFLAGS) -DJOS_KERNEL -gstabs
 USER_CFLAGS := $(CFLAGS) -DJOS_USER -gstabs
@@ -104,43 +121,66 @@ include boot/Makefrag
 include kern/Makefrag
 
 
-IMAGES = $(OBJDIR)/kern/bochs.img
+IMAGES = $(OBJDIR)/kern/kernel.img
+QEMUOPTS = -hda $(OBJDIR)/kern/kernel.img -serial mon:stdio $(QEMUEXTRA)
 
-bochs: $(IMAGES)
-	bochs 'display_library: nogui'
+.gdbinit: .gdbinit.tmpl
+	sed "s/localhost:1234/localhost:$(GDBPORT)/" < $^ > $@
+
+qemu: $(IMAGES)
+	$(QEMU) $(QEMUOPTS)
+
+qemu-nox: $(IMAGES)
+	@echo "***"
+	@echo "*** Use Ctrl-a x to exit qemu"
+	@echo "***"
+	$(QEMU) -nographic $(QEMUOPTS)
+
+qemu-gdb: $(IMAGES) .gdbinit
+	@echo "***"
+	@echo "*** Now run 'gdb'." 1>&2
+	@echo "***"
+	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+
+qemu-nox-gdb: $(IMAGES) .gdbinit
+	@echo "***"
+	@echo "*** Now run 'gdb'." 1>&2
+	@echo "***"
+	$(QEMU) -nographic $(QEMUOPTS) -S $(QEMUGDB)
+
+print-qemu:
+	@echo $(QEMU)
+
+print-gdbport:
+	@echo $(GDBPORT)
+
+print-qemugdb:
+	@echo $(QEMUGDB)
 
 # For deleting the build
 clean:
-	rm -rf $(OBJDIR)
+	rm -rf $(OBJDIR) .gdbinit jos.in
 
 realclean: clean
-	rm -rf lab$(LAB).tar.gz bochs.out bochs.log
+	rm -rf lab$(LAB).tar.gz jos.out
 
 distclean: realclean
 	rm -rf conf/gcc.mk
 
-grade: $(LABSETUP)grade.sh
-	$(V)$(MAKE) clean >/dev/null 2>/dev/null
+grade: $(LABSETUP)grade-lab$(LAB).sh
+	@echo $(MAKE) clean
+	@$(MAKE) clean || \
+	  (echo "'make clean' failed.  HINT: Do you have another running instance of JOS?" && exit 1)
 	$(MAKE) all
-	sh $(LABSETUP)grade.sh
+	sh $(LABSETUP)grade-lab$(LAB).sh
 
 handin: tarball
-	@echo Please visit http://pdos.csail.mit.edu/cgi-bin/828handin
-	@echo and upload lab$(LAB).tar.gz.  Thanks!
+	@echo Please visit http://pdos.csail.mit.edu/6.828/submit/
+	@echo and upload lab$(LAB)-handin.tar.gz.  Thanks!
 
 tarball: realclean
-	tar cf - `ls -a | grep -v '^\.*$$' | grep -v '^CVS$$' | grep -v '^lab[0-9].*\.tar\.gz'` | gzip > lab$(LAB).tar.gz
+	tar cf - `find . -type f | grep -v '^\.*$$' | grep -v '/CVS/' | grep -v '/\.svn/' | grep -v '/\.git/' | grep -v 'lab[0-9].*\.tar\.gz'` | gzip > lab$(LAB)-handin.tar.gz
 
-# For test runs
-run-%:
-	$(V)rm -f $(OBJDIR)/kern/init.o $(IMAGES)
-	$(V)$(MAKE) "DEFS=-DTEST=_binary_obj_user_$*_start -DTESTSIZE=_binary_obj_user_$*_size" $(IMAGES)
-	bochs -q 'display_library: nogui'
-
-xrun-%:
-	$(V)rm -f $(OBJDIR)/kern/init.o $(IMAGES)
-	$(V)$(MAKE) "DEFS=-DTEST=_binary_obj_user_$*_start -DTESTSIZE=_binary_obj_user_$*_size" $(IMAGES)
-	bochs -q
 
 # This magic automatically generates makefile dependencies
 # for header files included from C source files we compile,
@@ -156,4 +196,4 @@ always:
 	@:
 
 .PHONY: all always \
-	handin tarball clean realclean clean-labsetup distclean grade labsetup
+	handin tarball clean realclean distclean grade

@@ -3,7 +3,7 @@
 
 /**********************************************************************
  * This a dirt simple boot loader, whose sole job is to boot
- * an elf kernel image from the first IDE hard disk.
+ * an ELF kernel image from the first IDE hard disk.
  *
  * DISK LAYOUT
  *  * This program(boot.S and main.c) is the bootloader.  It should
@@ -23,10 +23,10 @@
  *  * Assuming this boot loader is stored in the first sector of the
  *    hard-drive, this code takes over...
  *
- *  * control starts in bootloader.S -- which sets up protected mode,
- *    and a stack so C code then run, then calls cmain()
+ *  * control starts in boot.S -- which sets up protected mode,
+ *    and a stack so C code then run, then calls bootmain()
  *
- *  * cmain() in this file takes over, reads in the kernel and jumps to it.
+ *  * bootmain() in this file takes over, reads in the kernel and jumps to it.
  **********************************************************************/
 
 #define SECTSIZE	512
@@ -36,7 +36,7 @@ void readsect(void*, uint32_t);
 void readseg(uint32_t, uint32_t, uint32_t);
 
 void
-cmain(void)
+bootmain(void)
 {
 	struct Proghdr *ph, *eph;
 
@@ -51,11 +51,13 @@ cmain(void)
 	ph = (struct Proghdr *) ((uint8_t *) ELFHDR + ELFHDR->e_phoff);
 	eph = ph + ELFHDR->e_phnum;
 	for (; ph < eph; ph++)
-		readseg(ph->p_va, ph->p_memsz, ph->p_offset);
+		// p_pa is the load address of this segment (as well
+		// as the physical address)
+		readseg(ph->p_pa, ph->p_memsz, ph->p_offset);
 
 	// call the entry point from the ELF header
 	// note: does not return!
-	((void (*)(void)) (ELFHDR->e_entry & 0xFFFFFF))();
+	((void (*)(void)) (ELFHDR->e_entry))();
 
 bad:
 	outw(0x8A00, 0x8A00);
@@ -64,18 +66,17 @@ bad:
 		/* do nothing */;
 }
 
-// Read 'count' bytes at 'offset' from kernel into virtual address 'va'.
+// Read 'count' bytes at 'offset' from kernel into physical address 'pa'.
 // Might copy more than asked
 void
-readseg(uint32_t va, uint32_t count, uint32_t offset)
+readseg(uint32_t pa, uint32_t count, uint32_t offset)
 {
-	uint32_t end_va;
+	uint32_t end_pa;
 
-	va &= 0xFFFFFF;
-	end_va = va + count;
+	end_pa = pa + count;
 	
 	// round down to sector boundary
-	va &= ~(SECTSIZE - 1);
+	pa &= ~(SECTSIZE - 1);
 
 	// translate from bytes to sectors, and kernel starts at sector 1
 	offset = (offset / SECTSIZE) + 1;
@@ -83,9 +84,13 @@ readseg(uint32_t va, uint32_t count, uint32_t offset)
 	// If this is too slow, we could read lots of sectors at a time.
 	// We'd write more to memory than asked, but it doesn't matter --
 	// we load in increasing order.
-	while (va < end_va) {
-		readsect((uint8_t*) va, offset);
-		va += SECTSIZE;
+	while (pa < end_pa) {
+		// Since we haven't enabled paging yet and we're using
+		// an identity segment mapping (see boot.S), we can
+		// use physical addresses directly.  This won't be the
+		// case once JOS enables the MMU.
+		readsect((uint8_t*) pa, offset);
+		pa += SECTSIZE;
 		offset++;
 	}
 }
