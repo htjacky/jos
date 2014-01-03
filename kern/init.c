@@ -63,6 +63,8 @@ _panic(const char *file, int line, const char *fmt,...)
 	cprintf("\n");
 	va_end(ap);
 
+	// Jacky 140103: print back trace in panic
+	mon_backtrace(0,0,0);
 dead:
 	/* break into the kernel monitor */
 	while (1)
