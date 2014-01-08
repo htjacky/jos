@@ -186,8 +186,10 @@ mem_init(void)
 	//    - the new image at UPAGES -- kernel R, user R
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
-	// Your code goes here:
-
+	// Jacky 140108:
+	boot_map_region(kern_pgdir, UPAGES, 
+			ROUNDUP(npages*sizeof(struct Page), PGSIZE), 
+			PADDR(pages), PTE_U);
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
 	// stack.  The kernel stack grows down from virtual address KSTACKTOP.
@@ -198,8 +200,13 @@ mem_init(void)
 	//       the kernel overflows its stack, it will fault rather than
 	//       overwrite memory.  Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
-	// Your code goes here:
+	// Jacky 140108: Where is the break mechanism?
+	boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, 
+			KSTKSIZE, 
+			PADDR(bootstack), // or bootstack, 
+			PTE_W);
 
+//assert(check_va2pa(pgdir, KSTACKTOP - KSTKSIZE + i) == PADDR(bootstack) + i);
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
 	// Ie.  the VA range [KERNBASE, 2^32) should map to
@@ -207,9 +214,11 @@ mem_init(void)
 	// We might not have 2^32 - KERNBASE bytes of physical memory, but
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
-	// Your code goes here:
-
- 	cprintf("%s,%d!\n",__func__,__LINE__);
+	// Jacky 140108:
+	boot_map_region(kern_pgdir, KERNBASE, 
+			ROUNDUP((0xffffffff - KERNBASE), PGSIZE),
+			0,
+			PTE_W);
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
 
@@ -418,7 +427,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 //	cprintf("%s,%d,pgdir = 0x%x, va = %x, pdt = 0x%x\n",__FILE__,__LINE__,pgdir,va,pdt);
 	struct Page* newpta = NULL;
 //	result = KADDR(PTE_ADDR(pgdir[PDX(va)]));
-	cprintf("%s(0x%x, 0x%x, %d, pdt = %x,*pdt = %x),\n",__func__,pgdir,va,create,pdt, *pdt);
+	//cprintf("%s(0x%x, 0x%x, %d, pdt = %x,*pdt = %x),\n",__func__,pgdir,va,create,pdt, *pdt);
 //	if (((int)(*result) & PTE_P) == 0){ // the page table entry not present yet
 	if (!(*pdt & PTE_P)) {
 		if(create) {
@@ -443,7 +452,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 	// This is quite different from right answer! 
 	// 0xf03fe000 + 1 = 0xf03fe001
 	// (pte_t *)0xf03fe000 + 1 = 0xf03fe004
-	cprintf("%s,%d, result = 0x%x\n",__FILE__,__LINE__,result);
+	//cprintf("%s,%d, result = 0x%x\n",__FILE__,__LINE__,result);
 	// There is one more thing I don't understand,
 	// How could I set the present bit in page table?
 	// Like this?
@@ -453,7 +462,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 }
 
 //
-	// Map [va, va+size) of virtual address space to physical [pa, pa+size)
+// Map [va, va+size) of virtual address space to physical [pa, pa+size)
 // in the page table rooted at pgdir.  Size is a multiple of PGSIZE.
 // Use permission bits perm|PTE_P for the entries.
 //
@@ -823,11 +832,11 @@ check_va2pa(pde_t *pgdir, uintptr_t va)
 {
 	pte_t *p;
 	pgdir = &pgdir[PDX(va)];
-cprintf("%s(0x%x,0x%x),pgdir = 0x%x\n",__func__,pgdir, va,pgdir);
+//cprintf("%s(0x%x,0x%x),pgdir = 0x%x\n",__func__,pgdir, va,pgdir);
 	if (!(*pgdir & PTE_P))
 		return ~0;
 	p = (pte_t*) KADDR(PTE_ADDR(*pgdir));
-cprintf("p = 0x%x,PTX(va) = %x, p[0] = %x, p[PTX(va)] = %x\n",p,PTX(va),p[0],p[PTX(va)]);
+//cprintf("p = 0x%x,PTX(va) = %x, p[0] = %x, p[PTX(va)] = %x\n",p,PTX(va),p[0],p[PTX(va)]);
 	if (!(p[PTX(va)] & PTE_P))
 		return ~0;
 	return PTE_ADDR(p[PTX(va)]);
