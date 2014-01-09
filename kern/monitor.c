@@ -10,6 +10,7 @@
 #include <kern/console.h>
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
+#include <kern/pmap.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -24,7 +25,10 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
-	{ "monbacktrace", "Monitor the back trace of a function", mon_backtrace}
+	{ "backtrace", "Monitor the back trace of a function", mon_backtrace},
+	{ "showmappings", "Display all the physics page mappings that apply to particular range of virtual addr", mon_showmappings},
+	{ "setmappings", "Explicitly set, clear or change the permissions of any mapping in the current address space", mon_setmappings},
+	{ "dumpmem", "Dump the contents of a range of memory given either a virtual of physical address", mon_dumpmem},
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -54,6 +58,119 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	cprintf("  end    %08x (virt)  %08x (phys)\n", end, end - KERNBASE);
 	cprintf("Kernel executable memory footprint: %dKB\n",
 		(end-entry+1023)/1024);
+	return 0;
+}
+
+int
+mon_dumpmem(int argc, char **argv, struct Trapframe *tf)
+{
+	if (argc != 4) {
+		cprintf("Usage: dumpmem [ADDR_TYPE] [LOWER_ADDR] [DWORD]\n");
+		cprintf("ADDR_TYPE should be 'v' or 'p'. v: virtual address, p: physical address.\n"); 
+		return 0;
+	}
+	uint32_t la,ua;
+	int i;
+	if (argv[1][0] == 'p') {
+		la = strtol(argv[2],0,0) + KERNBASE;
+		ua = la + strtol(argv[3],0,0)*4;
+	} else if (argv[1][0] == 'v') {
+		la = strtol(argv[2],0,0);
+		ua = la + strtol(argv[3],0,0)*4;
+	} else {
+		cprintf("Invalid ADDR TYPE!\n");
+		return 0;
+	}
+	if (la >= ua ||
+	    la != ROUNDUP(la, 4) ||
+	    ua != ROUNDUP(ua, 4)) {
+		cprintf("Invalid ADDR (0x%x, 0x%x)!\n",la,ua);
+		return 0;
+	}
+	for(i=0 ;la < ua; la += 4) {
+		if(!(i%4))
+			cprintf("\n0x%x: ",la);
+		cprintf("0x%x\t",*((uint32_t *)(la)));
+		i++;
+	}
+	cprintf("\n");
+	return 0;
+}
+int
+mon_setmappings(int argc, char **argv, struct Trapframe *tf)
+{
+	if (argc != 3) {
+		cprintf("Usage: setmappings [VIRTURAL_ADDR] [PERMISSION]\n");
+		cprintf("address should be aligned in 4kb, permission should \n \
+			 be a combination of u/k and r/w. \n \
+			 u:user, k:kernel, r:readonly, w:read/write.\n");
+		return 0;
+	}
+	uint32_t va = strtol(argv[1],0,0);
+	char* perm = argv[2];
+	if (va != ROUNDUP(va, PGSIZE)) {
+		cprintf("Invalid address: 0x%x!\n",va);
+		return 0;
+	}
+	if (((perm[0] != 'k') && (perm[0] != 'u')) ||
+		((perm[1] != 'r') && (perm[1] != 'w'))) {
+		cprintf("Invalid permission!\n");
+		return 0;
+	}
+	pte_t *pte = pgdir_walk(kern_pgdir, (void *)va, 0);
+	if (!pte) {
+		cprintf("Address not mapped!\n");
+		return 0;
+	}
+	if (perm[0] == 'u')
+		*pte = (*pte) | PTE_U;
+	else
+		*pte = (*pte) & (~PTE_U);
+	if (perm[1] == 'w')
+		*pte = (*pte) | PTE_W;
+	else
+		*pte = (*pte) & (~PTE_W);
+	cprintf("set 0x%x permission as 0x%x!\n",va, PGOFF(*pte));
+	return 0;
+}
+	
+int
+mon_showmappings(int argc, char **argv, struct Trapframe *tf)
+{
+	uint32_t start, end;
+	pte_t *pte;
+	if (argc != 3) {
+		cprintf("Usage: showmappings [LOWER_ADDR] [UPPER_ADDR]\n");
+		cprintf("Both address should be aligned in 4kb\n");
+		return 0;
+	}
+	start = strtol(argv[1],0,0);
+	end = strtol(argv[2],0,0);
+	
+	if (start != ROUNDUP(start, PGSIZE) ||
+	    end != ROUNDUP(end, PGSIZE) ||
+	    start > end) {
+		cprintf("Invalid address\n");
+		return 0;
+	}
+	while (start < end) {
+		pte = pgdir_walk(kern_pgdir, (void *)start, 0);
+		cprintf("0x%x ~ 0x%x: ",start, start + PGSIZE);
+		if (pte == NULL) {
+			cprintf("Not mapped!\n");	
+		} else {
+			cprintf("0x%x\n",PTE_ADDR(*pte));
+			if (*pte & PTE_U)
+				cprintf("user:");
+			else
+				cprintf("kernel:");
+			if (*pte & PTE_W)
+				cprintf("read/write\n");
+			else
+				cprintf("read only\n");
+		}
+		start += PGSIZE;
+	}
 	return 0;
 }
 
@@ -139,8 +256,10 @@ monitor(struct Trapframe *tf)
 {
 	char *buf;
 
-	cprintf("%CredWelcome %Cgrnto the JOS kernel monitor!\n");
-	cprintf("Type 'help' %C142for a list of commands.\n");
+	cprintf("Welcome to the JOS kernel monitor!\n");
+	cprintf("Type 'help' for a list of commands.\n");
+//	cprintf("%CredWelcome %Cgrnto the JOS kernel monitor!\n");
+//	cprintf("Type 'help' %C142for a list of commands.\n");
 
 
 	while (1) {
