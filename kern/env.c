@@ -115,9 +115,17 @@ void
 env_init(void)
 {
 	// Set up envs array
-	// LAB 3: Your code here.
-
-	// Per-CPU part of the initialization
+	// LAB 3: Jacky 140120
+	int i;
+	for (i = 0; i < NENV; i++) {
+		envs[i].env_id = 0;
+		envs[i].env_status = ENV_FREE;
+		//iter->env_link = envs + i;
+		if(i != NENV-1) {
+			envs[i].env_link = &envs[i+1];
+		}
+	}
+	env_free_list = envs;
 	env_init_percpu();
 }
 
@@ -128,7 +136,8 @@ env_init_percpu(void)
 	lgdt(&gdt_pd);
 	// The kernel never uses GS or FS, so we leave those set to
 	// the user data segment.
-	asm volatile("movw %%ax,%%gs" :: "a" (GD_UD|3));
+	asm volatile("movw %%ax,%%gs" :: "a" (GD_UD|3)); 
+	//asm volatile("movw %%ax,%%gs" :/*no output register*/: "a" (GD_UD|3)); GS = %gs = eax% = GD_UD|3 = 0x23 
 	asm volatile("movw %%ax,%%fs" :: "a" (GD_UD|3));
 	// The kernel does use ES, DS, and SS.  We'll change between
 	// the kernel and user data segments as needed.
@@ -178,8 +187,14 @@ env_setup_vm(struct Env *e)
 	//	pp_ref for env_free to work correctly.
 	//    - The functions in kern/pmap.h are handy.
 
-	// LAB 3: Your code here.
-
+	// LAB 3: Jacky140120
+//	boot_map_region(e->env_pgdir, UTOP,PGSIZE, page2pa(p), PTE_U);
+	p->pp_ref++;
+	e->env_pgdir = page2kva(p);
+	memmove(e->env_pgdir,kern_pgdir,PGSIZE);
+	memset(e->env_pgdir,0,PDX(UTOP)*sizeof(pde_t));
+	//for (i = PDX(UTOP); i<1024; i++)
+	//	e->env_pgdir[i] = kern_pgdir[i];
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
 	e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
@@ -260,9 +275,25 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 static void
 region_alloc(struct Env *e, void *va, size_t len)
 {
-	// LAB 3: Your code here.
+	// LAB 3: Jacky140120
+	uint32_t ua,la;
+	ua = (uint32_t)ROUNDUP(va+len, PGSIZE);
+	la = (uint32_t)ROUNDDOWN(va, PGSIZE);
+
+	uint32_t size = 0;
+	struct Page *p = NULL;
+	for(size = 0;size < (ua - la);size += PGSIZE) {
+		if (!(p = page_alloc(ALLOC_ZERO)))
+			panic("page allocation failed!\n");
+// Jacky: Original I thought should use boot_map_region to map, but actually it's only a static mapping, should use page_insert
+//		boot_map_region(e->env_pgdir, va+size, PGSIZE,
+//				page2pa(p), PTE_W|PTE_U);
+	//	page_insert(e->env_pgdir, p, va+size, PTE_W|PTE_U);
+		page_insert(e->env_pgdir, p, (void *)(la+size), PTE_W|PTE_U);
+		cprintf("%s(),%d:paddr = 0x%x,p = 0x%x, link = 0x%x\n",__func__,__LINE__,page2kva(p),p,p->pp_link);
+	}
+	
 	// (But only if you need it for load_icode.)
-	//
 	// Hint: It is easier to use region_alloc if the caller can pass
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
@@ -322,12 +353,56 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 	//  to make sure that the environment starts executing there.
 	//  What?  (See env_run() and env_pop_tf() below.)
 
-	// LAB 3: Your code here.
+	// LAB 3: Jacky 14020.
+//	int32_t d = 0x20000, fs = 4, s = 0x1000000;
+		//asm volatile("cld; rep movsb\n"
+		//	:: "D" (d), "S" (s), "c" (fs) : "cc", "memory");
 
+	lcr3(PADDR(e->env_pgdir));
+	struct Elf *elf = (struct Elf *)binary;
+	struct Proghdr *ph, *eph;
+	int i;
+	if(elf->e_magic != ELF_MAGIC) {
+		cprintf("%s() It's not an ELF file!\n",__func__);
+		return;
+	}
+cprintf("%s() line %d, elf = 0x%x!\n",__func__,__LINE__,elf);
+	// Mistake 1: Almost miss this one, it's changing the address space from kernel to e enviroment;
+//	lcr3(PADDR(e->env_pgdir));
+	ph = (struct Proghdr *) ((uint8_t *)elf + elf->e_phoff);
+	eph = ph + elf->e_phnum;
+	for (;ph<eph;ph++) {
+		if (ph->p_type != ELF_PROG_LOAD)
+			continue;
+		cprintf("%s() region_alloc(0x%x, 0x%x, 0x%x)!\n",__func__,e,(void *)ph->p_va,ph->p_memsz);
+		region_alloc(e,(void *)ph->p_va,ph->p_memsz);
+		cprintf("%s() line %d,va = 0x%x, 0x%x, 0x%x, 0x%x, 0x%x!\n",__func__,__LINE__,(void *)ph->p_va, elf, ph->p_offset, (uint8_t *)elf + ph->p_offset, ph->p_filesz);
+		if (e->env_status != ENV_RUNNING)  // do nothing..
+			cprintf("%s() line %d!\n",__func__,__LINE__);
+		cprintf("%s() line %d, env_pgdir = %x, pa = %x!\n",__func__,__LINE__, e->env_pgdir, PADDR(e->env_pgdir));
+//		i += 1;
+//		asm volatile("cld; rep movsb\n"
+//			:: "D" ((void *)ph->p_va), "S" (binary + ph->p_offset), "c" (ph->p_filesz) : "cc", "memory");
+		cprintf("%s() line %d!\n",__func__,__LINE__);
+		memmove((void *)ph->p_va, (uint8_t *)elf + ph->p_offset, ph->p_filesz);
+	//	memmove((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
+/*		char *va = (char *)ph->p_va;
+		for(i = 0;i <ph->p_filesz; i++) {
+			cprintf("%s() line %d,i = %d!\n",__func__,__LINE__,i);
+			va[i] = binary[ph->p_offset+i];
+		}
+		cprintf("%s() line %d!\n",__func__,__LINE__);
+		memset((void *)(ph->p_va + ph->p_filesz), 0, ph->p_memsz - ph->p_filesz);
+*/		cprintf("%s() line %d!\n",__func__,__LINE__);
+	}
+	// Mistake 2: set the enviroment's entry point
+	e->env_tf.tf_eip = elf->e_entry;
+	
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
-	// LAB 3: Your code here.
+	// LAB 3: Jacky 140120
+	region_alloc(e, (void *)(USTACKTOP-PGSIZE), PGSIZE);
 }
 
 //
@@ -340,7 +415,18 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 void
 env_create(uint8_t *binary, size_t size, enum EnvType type)
 {
-	// LAB 3: Your code here.
+	// LAB 3: Jacky140120
+	struct Env* e;
+	int failno = env_alloc(&e, 0);
+	cprintf("%s(),%d!\n",__func__,__LINE__);
+	if (failno < 0) {
+		cprintf("%s(0x%x, %d, %d) failed, fail code = %e!\n",__func__, binary, size, type, failno);
+		return;
+	}
+	cprintf("%s(),%d!\n",__func__,__LINE__);
+	load_icode(e, binary, size);
+	e->env_type = type;
+	cprintf("%s(),%d!\n",__func__,__LINE__);
 }
 
 //
@@ -455,8 +541,17 @@ env_run(struct Env *e)
 	//	and make sure you have set the relevant parts of
 	//	e->env_tf to sensible values.
 
-	// LAB 3: Your code here.
+	// LAB 3: Jacky 140120.
+	if (!curenv) {
+		if(curenv->env_status == ENV_RUNNING)
+			curenv->env_status = ENV_RUNNABLE;
+	}
+	curenv = e;
+	curenv->env_status = ENV_RUNNING;
+	curenv->env_runs++;
+	lcr3(PADDR(curenv->env_pgdir));
 
+	env_pop_tf(&curenv->env_tf);
 	panic("env_run not yet implemented");
 }
 
