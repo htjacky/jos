@@ -290,7 +290,6 @@ region_alloc(struct Env *e, void *va, size_t len)
 //				page2pa(p), PTE_W|PTE_U);
 	//	page_insert(e->env_pgdir, p, va+size, PTE_W|PTE_U);
 		page_insert(e->env_pgdir, p, (void *)(la+size), PTE_W|PTE_U);
-		cprintf("%s(),%d:paddr = 0x%x,p = 0x%x, link = 0x%x\n",__func__,__LINE__,page2kva(p),p,p->pp_link);
 	}
 	
 	// (But only if you need it for load_icode.)
@@ -366,34 +365,14 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 		cprintf("%s() It's not an ELF file!\n",__func__);
 		return;
 	}
-cprintf("%s() line %d, elf = 0x%x!\n",__func__,__LINE__,elf);
 	// Mistake 1: Almost miss this one, it's changing the address space from kernel to e enviroment;
-//	lcr3(PADDR(e->env_pgdir));
 	ph = (struct Proghdr *) ((uint8_t *)elf + elf->e_phoff);
 	eph = ph + elf->e_phnum;
 	for (;ph<eph;ph++) {
 		if (ph->p_type != ELF_PROG_LOAD)
 			continue;
-		cprintf("%s() region_alloc(0x%x, 0x%x, 0x%x)!\n",__func__,e,(void *)ph->p_va,ph->p_memsz);
 		region_alloc(e,(void *)ph->p_va,ph->p_memsz);
-		cprintf("%s() line %d,va = 0x%x, 0x%x, 0x%x, 0x%x, 0x%x!\n",__func__,__LINE__,(void *)ph->p_va, elf, ph->p_offset, (uint8_t *)elf + ph->p_offset, ph->p_filesz);
-		if (e->env_status != ENV_RUNNING)  // do nothing..
-			cprintf("%s() line %d!\n",__func__,__LINE__);
-		cprintf("%s() line %d, env_pgdir = %x, pa = %x!\n",__func__,__LINE__, e->env_pgdir, PADDR(e->env_pgdir));
-//		i += 1;
-//		asm volatile("cld; rep movsb\n"
-//			:: "D" ((void *)ph->p_va), "S" (binary + ph->p_offset), "c" (ph->p_filesz) : "cc", "memory");
-		cprintf("%s() line %d!\n",__func__,__LINE__);
 		memmove((void *)ph->p_va, (uint8_t *)elf + ph->p_offset, ph->p_filesz);
-	//	memmove((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
-/*		char *va = (char *)ph->p_va;
-		for(i = 0;i <ph->p_filesz; i++) {
-			cprintf("%s() line %d,i = %d!\n",__func__,__LINE__,i);
-			va[i] = binary[ph->p_offset+i];
-		}
-		cprintf("%s() line %d!\n",__func__,__LINE__);
-		memset((void *)(ph->p_va + ph->p_filesz), 0, ph->p_memsz - ph->p_filesz);
-*/		cprintf("%s() line %d!\n",__func__,__LINE__);
 	}
 	// Mistake 2: set the enviroment's entry point
 	e->env_tf.tf_eip = elf->e_entry;
@@ -424,10 +403,8 @@ env_create(uint8_t *binary, size_t size, enum EnvType type)
 		cprintf("%s(0x%x, %d, %d) failed, fail code = %e!\n",__func__, binary, size, type, failno);
 		return;
 	}
-	cprintf("%s(),%d!\n",__func__,__LINE__);
 	load_icode(e, binary, size);
 	e->env_type = type;
-	cprintf("%s(),%d!\n",__func__,__LINE__);
 }
 
 //

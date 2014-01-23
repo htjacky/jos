@@ -278,54 +278,21 @@ page_init(void)
 	// Change the code to reflect this.
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
-	//size_t i;
-/*	for (i = 0; i < npages; i++) {
-		pages[i].pp_ref = 0;
-		pages[i].pp_link = page_free_list;
-		page_free_list = &pages[i];
-	}
-*/
 	// Jacky 140103
 	//  1) Mark physical page 0 as in use.
 	//     This way we preserve the real-mode IDT and BIOS structures
 	//     in case we ever need them.  (Currently we don't, but...)
-//	pages[0].pp_ref++;
-//	pages[0].pp_link = page_free_list = 0;
 	//  2) The rest of base memory, [PGSIZE, npages_basemem * PGSIZE)
 	//     is free.
-/*	for (i = 1; i < npages_basemem;) {
-		pages[i].pp_ref = 0;
-		pages[i].pp_link = page_free_list;	// in this case, free pages should allocated from high to low;
-		page_free_list = &pages[i++];
-	}
-*/
 	//  3) Then comes the IO hole [IOPHYSMEM, EXTPHYSMEM), which must
 	//     never be allocated.
-/*	for (;i <= (EXTPHYSMEM / PGSIZE); i++) {
-		pages[i].pp_ref = 1;
-		pages[i].pp_link = page_free_list;
-	}
-*/
 	//  4) Then extended memory [EXTPHYSMEM, ...).
 	//     Some of it is in use, some is free. Where is the kernel
 	//     in physical memory?  Which pages are already in use for
 	//     page tables and other data structures?
-/*	for (j = 0; j < (((int)boot_alloc(0) - KERNBASE) / PGSIZE); j++, i++) {
-		pages[i].pp_ref = 1;
-		pages[i].pp_link = page_free_list;
-	}
-
-	for (; j < ((nvram_read(NVRAM_EXTLO) * 1024) / PGSIZE); j++, i++) {
-			
-		pages[i].pp_ref = 0;
-		pages[i].pp_link = page_free_list;
-		page_free_list = &pages[i];
-	}
-*/
 	int i;
 	int lower_pgnum = PGNUM(IOPHYSMEM);
 	int upper_pgnum = PGNUM(ROUNDUP((int)boot_alloc(0) - KERNBASE,PGSIZE));
-	//LIST_INIT(&page_free_list);
 	page_free_list = NULL;
 	for (i = 0; i < npages; i++) {
 		pages[i].pp_ref = 0;
@@ -333,7 +300,6 @@ page_init(void)
 			continue;
 		if (i == 0)
 			continue;
-	//	LIST_INSERT_HEAD(&page_free_list,pages[i],pp_link);
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
 	}
@@ -356,7 +322,6 @@ page_alloc(int alloc_flags)
 	struct Page* result = NULL;
 	if (page_free_list == NULL) {
 		cprintf("Warning: Run out of memory, return NULL!\n");
-//		result = NULL;
 		return NULL;
 	} else if (page_free_list->pp_link == page_free_list) {
 		result = page_free_list;
@@ -365,15 +330,11 @@ page_alloc(int alloc_flags)
 	} else {
 		result = page_free_list->pp_link;
 		page_free_list->pp_link = page_free_list->pp_link->pp_link;
-//		result = page_free_list;
-//		page_free_list = page_free_list->pp_link;
 	}
 	if (alloc_flags & ALLOC_ZERO) {
-		cprintf("%s(), ALLOC_ZERO, page = 0x%x\n",__func__, result);
+	//	cprintf("%s(), ALLOC_ZERO, page = 0x%x\n",__func__, result);
 		memset(page2kva(result), 0x0, PGSIZE);
 	}
-	// only for debug use;
-	//memset(page2kva(result), 0xf5, PGSIZE);
 	return result;
 }
 
@@ -447,28 +408,16 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 			} else {
 				newpta->pp_ref++;
 				*pdt = page2pa(newpta)|PTE_U|PTE_W|PTE_P;
-				cprintf("%s,%d, create new page table at 0x%x\n",__func__,__LINE__,*pdt);
+				//cprintf("%s,%d, create new page table at 0x%x\n",__func__,__LINE__,*pdt);
 				result = page2kva(newpta);	
 			}
 		} else {
-			cprintf("%s,%d, didn't create new page table\n",__func__,__LINE__);
+			//cprintf("%s,%d, didn't create new page table\n",__func__,__LINE__);
 			return NULL;
 		}
 	} else {
-	//	result = (pte_t *)KADDR(PTE_ADDR(*pdt)) + PTX(va);
 		result = (pte_t *)page2kva(pa2page(PTE_ADDR(*pdt)));
-//		cprintf("%s,%d, find the pte = 0x%x!\n",__func__,__LINE__,result);
 	}
-	// Original: result = KADDR(PTE_ADDR(*pdt)) + PTX(va);
-	// This is quite different from right answer! 
-	// 0xf03fe000 + 1 = 0xf03fe001
-	// (pte_t *)0xf03fe000 + 1 = 0xf03fe004
-	//cprintf("%s,%d, result = 0x%x\n",__FILE__,__LINE__,result);
-	// There is one more thing I don't understand,
-	// How could I set the present bit in page table?
-	// Like this?
-	// kern_pgdir[PDX(UVPT)] = PADDR(kern_pgdir) | PTE_U | PTE_P;
-	// The privilage part is set by other functions.
 	return &result[PTX(va)];
 }
 
@@ -523,7 +472,6 @@ int
 page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
 {
 	// Jacky 140107
- 	cprintf("%s,(0x%x: 0x%x, 0x%x, %d)!\n",__func__, pgdir, pp, va, perm);
 	pte_t *pte = NULL;
 	struct Page *pg = page_lookup(pgdir, va, NULL);
 	if (pg == pp) {
@@ -542,39 +490,6 @@ page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
 	*pte = page2pa(pp)|perm|PTE_P;
 	pp->pp_ref++;
 	return 0;
-	
-/*	pte_t *pte = pgdir_walk(pgdir, va, 1);
-	if (!pte)
-		return -E_NO_MEM;
-	if(PTE_ADDR(*pte) != page2pa(pp)) {
-//	if((PTE_ADDR(*pte) != page2pa(pp)) && ((*pte) != 0)) {
- 		cprintf("%s,%d, there is already another page mapped at 0x%x: *pte = 0x%x, page2pa(0x%x) = 0x%x!\n",__func__,__LINE__, va, *pte, pp, page2pa(pp));
-		page_remove(pgdir, va);
-		pte = pgdir_walk(pgdir, va, 1);
-		cprintf("%s,%d, mapped 0x%x at *pte = 0x%x, page = 0x%x!\n",__func__,__LINE__, va, *pte, pp);
-		pp->pp_ref++;
-	} 
-	*pte = page2pa(pp)|perm|PTE_P;
-	return 0;
-	*/
-/*	pte_t *pte = pgdir_walk(pgdir, va, 0);
- 	cprintf("%s,%d, pte = 0x%x: *pte = 0x%x!\n",__func__,__LINE__, pte, *pte);
-	if(PTE_ADDR(*pte) == page2pa(pp)) {
- 		cprintf("%s,%d, there is already a same page mapped at 0x%x: *pte = 0x%x, page2pa(0x%x) = 0x%x!\n",__func__,__LINE__, va, *pte, pp, page2pa(pp));
-		return 0;
-	} else  if(pte != NULL) {
- 		cprintf("%s,%d, there is already another page mapped at 0x%x: *pte = 0x%x, page2pa(0x%x) = 0x%x!\n",__func__,__LINE__, va, *pte, pp, page2pa(pp));
-		page_remove(pgdir, va);
-	} else {
- 		cprintf("%s,%d, there is no page mapped at 0x%x: *pte = 0x%x, page2pa(0x%x) = 0x%x!\n",__func__,__LINE__, va, *pte, pp, page2pa(pp));
-	}
-	pte = pgdir_walk(pgdir, va, 1);
-	if (!pte)
-		return -E_NO_MEM;
-	cprintf("%s,%d, mapped 0x%x at *pte = 0x%x, page = 0x%x!\n",__func__,__LINE__, va, *pte, pp);
-	pp->pp_ref++;
-	*pte = page2pa(pp)|perm|PTE_P;
-	return 0;*/
 }
 
 //
@@ -595,13 +510,11 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 	pte_t *pte = pgdir_walk(pgdir, va, 0);
 	if(pte_store != NULL) {
 		*pte_store = pte;
-		cprintf("%s,%d, pte_store = 0x%x!\n",__func__,__LINE__,*pte_store);
 	}
 	if ((pte == NULL) || ((*pte & PTE_P) == 0)) {
  		cprintf("%s,%d, no page mapped at va!\n",__func__,__LINE__);
 		return NULL;
 	}
-	cprintf("%s,%d, return pte at 0x%x, page = %x!\n",__func__,__LINE__,*pte, pa2page(PTE_ADDR(*pte)));
 	return pa2page(PTE_ADDR(*pte));
 }
 
@@ -632,12 +545,6 @@ page_remove(pde_t *pgdir, void *va)
  		cprintf("%s,%d, no page mapped at va!\n",__func__,__LINE__);
 	}
 	*pte = 0;
-/* Jacky a big bug here: pa is freed twice!!!
-	if (!pa->pp_ref) {
-cprintf("remove page = 0x%x\n",pa);
-		page_free(pa);
-	}
-*/
 	tlb_invalidate(pgdir,va);
 }
 
@@ -735,7 +642,6 @@ check_page_free_list(bool only_low_memory)
 		page_free_list = pp1;
 	}
 
-	cprintf("%s, %d, page_free_list = 0x%x, pages = 0x%x, kern_pgdir = 0x%x\n",__func__,__LINE__,page_free_list, pages, kern_pgdir);
 	// if there's a page that shouldn't be on the free list,
 	// try to make sure it eventually causes trouble.
 	for (pp = page_free_list; pp; pp = pp->pp_link)
@@ -746,11 +652,6 @@ check_page_free_list(bool only_low_memory)
 	for (pp = page_free_list; pp; pp = pp->pp_link) {
 		// check that we didn't corrupt the free list itself
 		assert(pp >= pages);
-	if ((!only_low_memory) && (i<100)) {
-		i++;
-		cprintf("i = %d, paddr = %x, mapto = %x, p->pp_link = 0x%x\n",i,pp, page2kva(pp),pp->pp_link);
-		//cprintf("%s, %d, page_free_list = 0x%x\n",__FILE__,__LINE__,page_free_list);
-	}
 		assert(pp < pages + npages);
 		assert(((char *) pp - (char *) pages) % sizeof(*pp) == 0);
 
@@ -916,11 +817,9 @@ check_va2pa(pde_t *pgdir, uintptr_t va)
 	pte_t *p;
 
 	pgdir = &pgdir[PDX(va)];
-//cprintf("%s(0x%x,0x%x),\n",__func__,pgdir, va);
 	if (!(*pgdir & PTE_P))
 		return ~0;
 	p = (pte_t*) KADDR(PTE_ADDR(*pgdir));
-//cprintf("p = 0x%x,PTX(va) = %x, p[0] = %x, p[PTX(va)] = %x\n",p,PTX(va),p[0],p[PTX(va)]);
 	if (!(p[PTX(va)] & PTE_P))
 		return ~0;
 	return PTE_ADDR(p[PTX(va)]);
@@ -1080,7 +979,6 @@ check_page_installed_pgdir(void)
 	uintptr_t va;
 	int i;
 
-cprintf("%s(), %d\n",__func__,__LINE__);
 	// check that we can read and write installed pages
 	pp1 = pp2 = 0;
 	assert((pp0 = page_alloc(0)));
@@ -1092,19 +990,13 @@ cprintf("%s(), %d\n",__func__,__LINE__);
 	page_insert(kern_pgdir, pp1, (void*) PGSIZE, PTE_W);
 	assert(pp1->pp_ref == 1);
 	assert(*(uint32_t *)PGSIZE == 0x01010101U);
-cprintf("%s,%d, pp2 = 0x%x, mapto = 0x%x, link = 0x%x, page_free_list = 0x%x!\n",__func__,__LINE__, pp2, page2kva(pp2), pp2->pp_link,page_free_list);
-cprintf("%s,%d, pp1 = 0x%x, mapto = 0x%x, link = 0x%x,page_free_list link to 0x%x!\n",__func__,__LINE__, pp1, page2kva(pp1), pp1->pp_link, page_free_list->pp_link);
 	page_insert(kern_pgdir, pp2, (void*) PGSIZE, PTE_W);
-cprintf("%s,%d, pp2 = 0x%x, mapto = 0x%x, link = 0x%x, page_free_list = 0x%x!\n",__func__,__LINE__, pp2, page2kva(pp2), pp2->pp_link,page_free_list);
-cprintf("%s,%d, pp1 = 0x%x, mapto = 0x%x, link = 0x%x,page_free_list link to 0x%x!\n",__func__,__LINE__, pp1, page2kva(pp1), pp1->pp_link, page_free_list->pp_link);
 	assert(*(uint32_t *)PGSIZE == 0x02020202U);
 	assert(pp2->pp_ref == 1);
 	assert(pp1->pp_ref == 0);
 	*(uint32_t *)PGSIZE = 0x03030303U;
 	assert(*(uint32_t *)page2kva(pp2) == 0x03030303U);
 	page_remove(kern_pgdir, (void*) PGSIZE);
-cprintf("%s,%d, pp2 = 0x%x, mapto = 0x%x, link = 0x%x, page_free_list = 0x%x!\n",__func__,__LINE__, pp2, page2kva(pp2), pp2->pp_link,page_free_list);
-cprintf("%s,%d, pp1 = 0x%x, mapto = 0x%x, link = 0x%x,page_free_list link to 0x%x!\n",__func__,__LINE__, pp1, page2kva(pp1), pp1->pp_link, page_free_list->pp_link);
 	assert(pp2->pp_ref == 0);
 
 	// forcibly take pp0 back
@@ -1114,7 +1006,5 @@ cprintf("%s,%d, pp1 = 0x%x, mapto = 0x%x, link = 0x%x,page_free_list link to 0x%
 	pp0->pp_ref = 0;
 	// free the pages we took
 	page_free(pp0);
-cprintf("%s,%d, pp2 = 0x%x, mapto = 0x%x, link = 0x%x, page_free_list = 0x%x!\n",__func__,__LINE__, pp2, page2kva(pp2), pp2->pp_link,page_free_list);
-cprintf("%s,%d, pp1 = 0x%x, mapto = 0x%x, link = 0x%x,page_free_list link to 0x%x!\n",__func__,__LINE__, pp1, page2kva(pp1), pp1->pp_link, page_free_list->pp_link);
 	cprintf("check_page_installed_pgdir() succeeded!\n");
 }
