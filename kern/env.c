@@ -403,6 +403,7 @@ cprintf("%s() line %d, elf = 0x%x!\n",__func__,__LINE__,elf);
 
 	// LAB 3: Jacky 140120
 	region_alloc(e, (void *)(USTACKTOP-PGSIZE), PGSIZE);
+	lcr3(PADDR(kern_pgdir));
 }
 
 //
