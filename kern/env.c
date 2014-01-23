@@ -520,7 +520,7 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Jacky 140120.
-	if (!curenv) {
+	if (curenv) {
 		if(curenv->env_status == ENV_RUNNING)
 			curenv->env_status = ENV_RUNNABLE;
 	}
