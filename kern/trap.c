@@ -65,7 +65,43 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
+	extern void Entry_Divide_Error();
+	extern void Entry_Debug_Exception();
+	extern void Entry_NMI_Exception();
+	extern void Entry_Breakpoint();
+	extern void Entry_Overflow();
+	extern void Entry_Bound_Check();
+	extern void Entry_Illegal_Opcode();
+	extern void Entry_Device_Not_Available();
+	extern void Entry_Double_Fault();
+	extern void Entry_Invalid_TSS();
+	extern void Entry_Segment_Not_Present();
+	extern void Entry_Stack_Exception();
+	extern void Entry_General_Protection_Fault();
+	extern void Entry_Page_Fault();
+	extern void Entry_Floating_Point_Error();
+	extern void Entry_Alignment_Check();
+	extern void Entry_Machine_Check();
+	extern void Entry_Simd_Floating_Point_Err();
 
+	SETGATE(idt[T_DIVIDE], 0, GD_KT, Entry_Divide_Error, 0);
+	SETGATE(idt[T_DEBUG], 0, GD_KT, Entry_Debug_Exception, 0);
+	SETGATE(idt[T_NMI], 0, GD_KT, Entry_NMI_Exception, 0);
+	SETGATE(idt[T_BRKPT], 0, GD_KT, Entry_Breakpoint, 3);
+	SETGATE(idt[T_OFLOW], 0, GD_KT, Entry_Overflow, 0);
+	SETGATE(idt[T_BOUND], 0, GD_KT, Entry_Bound_Check, 0);
+	SETGATE(idt[T_ILLOP], 0, GD_KT, Entry_Illegal_Opcode, 0);
+	SETGATE(idt[T_DEVICE], 0, GD_KT, Entry_Device_Not_Available, 0);
+	SETGATE(idt[T_DBLFLT], 0, GD_KT, Entry_Double_Fault, 0);
+	SETGATE(idt[T_TSS], 0, GD_KT, Entry_Invalid_TSS, 0);
+	SETGATE(idt[T_SEGNP], 0, GD_KT, Entry_Segment_Not_Present, 0);
+	SETGATE(idt[T_STACK], 0, GD_KT, Entry_Stack_Exception, 0);
+	SETGATE(idt[T_GPFLT], 0, GD_KT, Entry_General_Protection_Fault, 0);
+	SETGATE(idt[T_PGFLT], 0, GD_KT, Entry_Page_Fault, 0);
+	SETGATE(idt[T_FPERR], 0, GD_KT, Entry_Floating_Point_Error, 0);
+	SETGATE(idt[T_ALIGN], 0, GD_KT, Entry_Alignment_Check, 0);
+	SETGATE(idt[T_MCHK], 0, GD_KT, Entry_Machine_Check, 0);
+	SETGATE(idt[T_SIMDERR], 0, GD_KT, Entry_Simd_Floating_Point_Err, 0);
 	// Per-CPU setup 
 	trap_init_percpu();
 }
