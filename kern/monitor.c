@@ -12,6 +12,7 @@
 #include <kern/kdebug.h>
 #include <kern/trap.h>
 #include <kern/pmap.h>
+#include <kern/env.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -30,6 +31,8 @@ static struct Command commands[] = {
 	{ "showmappings", "Display all the physics page mappings that apply to particular range of virtual addr", mon_showmappings},
 	{ "setmappings", "Explicitly set, clear or change the permissions of any mapping in the current address space", mon_setmappings},
 	{ "dumpmem", "Dump the contents of a range of memory given either a virtual of physical address", mon_dumpmem},
+	{ "continue", "Continue execution for debugging", mon_continue},
+	{ "si", "Single step for debugging", mon_si},
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -175,6 +178,43 @@ mon_showmappings(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+int
+mon_si(int argc, char **argv, struct Trapframe *tf)
+{
+	extern struct Env *curenv;
+	struct Eipdebuginfo info;
+	if (tf == NULL) {
+		cprintf("Can't single step, since tf == NULL\n");
+		return -1;
+	}
+	if ((tf->tf_trapno != T_DEBUG) && (tf->tf_trapno != T_BRKPT)) {
+		cprintf("Can't continue, wrong trap number!\n");
+		return -1;
+	}
+	cprintf("Print the single step info!\n");
+	tf->tf_eflags |= FL_TF;
+	debuginfo_eip((uintptr_t)tf->tf_eip, &info);
+	cprintf("Si information: \n tf_eip = %x,\n%s:%d: %.*s+%d\n",tf->tf_eip, info.eip_file,info.eip_line,info.eip_fn_namelen, info.eip_fn_name,tf->tf_eip - info.eip_fn_addr);
+	env_run(curenv);
+	return 0;
+}
+	
+int
+mon_continue(int argc, char **argv, struct Trapframe *tf)
+{
+	extern struct Env *curenv;
+	if (tf == NULL) {
+		cprintf("Can't continue, since the tf = NULL!\n");
+		return -1;
+	}
+	if ((tf->tf_trapno != T_DEBUG) && (tf->tf_trapno != T_BRKPT)) {
+		cprintf("Can't continue, wrong trap number!\n");
+		return -1;
+	}
+	tf->tf_eflags &= ~FL_TF;
+	env_run(curenv);
+	return 0;
+}
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
