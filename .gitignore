@@ -8,7 +8,14 @@
 /wget.log
 /slirp.cap
 /qemu.out
+/qemu.log
 /lab?-handin.tar.gz
 /lab?/
 /sol?/
 /conf/lab.mk
+/bochs.log
+/cscope.out
+/kern/*.swp
+/lib/*.swp
+/user/*.swp
+tags

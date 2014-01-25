@@ -181,7 +181,7 @@ mon_showmappings(int argc, char **argv, struct Trapframe *tf)
 int
 mon_si(int argc, char **argv, struct Trapframe *tf)
 {
-	extern struct Env *curenv;
+	//extern struct Env *curenv;
 	struct Eipdebuginfo info;
 	if (tf == NULL) {
 		cprintf("Can't single step, since tf == NULL\n");
@@ -202,7 +202,7 @@ mon_si(int argc, char **argv, struct Trapframe *tf)
 int
 mon_continue(int argc, char **argv, struct Trapframe *tf)
 {
-	extern struct Env *curenv;
+	//extern struct Env *curenv;
 	if (tf == NULL) {
 		cprintf("Can't continue, since the tf = NULL!\n");
 		return -1;
