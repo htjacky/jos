@@ -83,6 +83,7 @@ trap_init(void)
 	extern void Entry_Alignment_Check();
 	extern void Entry_Machine_Check();
 	extern void Entry_Simd_Floating_Point_Err();
+	extern void Entry_System_Call();
 
 	SETGATE(idt[T_DIVIDE], 0, GD_KT, Entry_Divide_Error, 0);
 	SETGATE(idt[T_DEBUG], 0, GD_KT, Entry_Debug_Exception, 0);
@@ -102,6 +103,7 @@ trap_init(void)
 	SETGATE(idt[T_ALIGN], 0, GD_KT, Entry_Alignment_Check, 0);
 	SETGATE(idt[T_MCHK], 0, GD_KT, Entry_Machine_Check, 0);
 	SETGATE(idt[T_SIMDERR], 0, GD_KT, Entry_Simd_Floating_Point_Err, 0);
+	SETGATE(idt[T_SYSCALL], 0, GD_KT, Entry_System_Call, 3);
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -178,7 +180,8 @@ static void
 trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
-	// LAB 3: Your code here.
+	// LAB 3: Jacky 140124
+	int r;
 	switch (tf->tf_trapno) {
 		case T_PGFLT:
 			page_fault_handler(tf);
@@ -186,6 +189,17 @@ trap_dispatch(struct Trapframe *tf)
 		case T_BRKPT:
 			monitor(tf);
 			break;
+		case T_SYSCALL:
+			r = syscall(tf->tf_regs.reg_eax,
+				tf->tf_regs.reg_edx,
+				tf->tf_regs.reg_ecx,
+				tf->tf_regs.reg_ebx,
+				tf->tf_regs.reg_edi,
+				tf->tf_regs.reg_esi);
+			if (r < 0)
+				panic("%s:%d with error code = %d\n", __func__,__LINE__,r);
+			tf->tf_regs.reg_eax = r;
+			return;
 		default:
 			break;
 	}
@@ -246,8 +260,12 @@ page_fault_handler(struct Trapframe *tf)
 	fault_va = rcr2();
 
 	// Handle kernel-mode page faults.
-
-	// LAB 3: Your code here.
+	// LAB 3: Jacky 140125
+	if (tf->tf_cs == GD_KT) {
+		print_trapframe(tf);
+		panic("kernel page fault va %08x ip %08x with ERR code = 0x%x\n",
+		fault_va, tf->tf_eip, tf->tf_err);
+	}
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
