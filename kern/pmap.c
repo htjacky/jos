@@ -234,6 +234,9 @@ mem_init(void)
 			ROUNDUP((0xffffffff - KERNBASE), PGSIZE),
 			0,
 			PTE_W);
+	// Initialize the SMP-related parts of the memory map
+	mem_init_mp();
+	
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
 
