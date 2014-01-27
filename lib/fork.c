@@ -21,7 +21,7 @@ pgfault(struct UTrapframe *utf)
 	// Check that the faulting access was (1) a write, and (2) to a
 	// copy-on-write page.  If not, panic.
 	// Hint:
-	//   Use the read-only page table mappings at vpt
+	//   Use the read-only page table mappings at uvpt
 	//   (see <inc/memlayout.h>).
 
 	// LAB 4: Your code here.
@@ -70,7 +70,7 @@ duppage(envid_t envid, unsigned pn)
 // It is also OK to panic on error.
 //
 // Hint:
-//   Use vpd, vpt, and duppage.
+//   Use uvpd, uvpt, and duppage.
 //   Remember to fix "thisenv" in the child process.
 //   Neither user exception stack should ever be marked copy-on-write,
 //   so you must allocate a new page for the child's user exception stack.

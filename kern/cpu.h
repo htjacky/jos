@@ -14,10 +14,11 @@
 enum {
 	CPU_UNUSED = 0,
 	CPU_STARTED,
+	CPU_HALTED,
 };
 
 // Per-CPU state
-struct Cpu {
+struct CpuInfo {
 	uint8_t cpu_id;                 // Local APIC ID; index into cpus[] below
 	volatile unsigned cpu_status;   // The status of the CPU
 	struct Env *cpu_env;            // The currently-running environment.
@@ -25,10 +26,10 @@ struct Cpu {
 };
 
 // Initialized in mpconfig.c
-extern struct Cpu cpus[NCPU];
+extern struct CpuInfo cpus[NCPU];
 extern int ncpu;                    // Total number of CPUs in the system
-extern struct Cpu *bootcpu;         // The boot-strap processor (BSP)
-extern volatile uint32_t *lapic;    // MMIO address to access the local-APIC
+extern struct CpuInfo *bootcpu;     // The boot-strap processor (BSP)
+extern physaddr_t lapicaddr;        // Physical MMIO address of the local APIC
 
 // Per-CPU kernel stacks
 extern unsigned char percpu_kstacks[NCPU][KSTKSIZE];

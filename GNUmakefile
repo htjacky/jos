@@ -116,7 +116,15 @@ all:
 KERN_CFLAGS := $(CFLAGS) -DJOS_KERNEL -gstabs
 USER_CFLAGS := $(CFLAGS) -DJOS_USER -gstabs
 
-
+# Update .vars.X if variable X has changed since the last make run.
+#
+# Rules that use variable X should depend on $(OBJDIR)/.vars.X.  If
+# the variable's value has changed, this will update the vars file and
+# force a rebuild of the rule that depends on it.
+$(OBJDIR)/.vars.%: FORCE
+	$(V)echo "$($*)" | cmp -s $@ || echo "$($*)" > $@
+.PRECIOUS: $(OBJDIR)/.vars.%
+.PHONY: FORCE
 
 
 # Include Makefrags for subdirectories
@@ -134,26 +142,27 @@ IMAGES = $(OBJDIR)/kern/kernel.img
 QEMUOPTS += -smp $(CPUS)
 QEMUOPTS += $(QEMUEXTRA)
 
-
 .gdbinit: .gdbinit.tmpl
 	sed "s/localhost:1234/localhost:$(GDBPORT)/" < $^ > $@
 
-qemu: $(IMAGES) .gdbinit
+pre-qemu: .gdbinit
+
+qemu: $(IMAGES) pre-qemu
 	$(QEMU) $(QEMUOPTS)
 
-qemu-nox: $(IMAGES) .gdbinit
+qemu-nox: $(IMAGES) pre-qemu
 	@echo "***"
 	@echo "*** Use Ctrl-a x to exit qemu"
 	@echo "***"
 	$(QEMU) -nographic $(QEMUOPTS)
 
-qemu-gdb: $(IMAGES) .gdbinit
+qemu-gdb: $(IMAGES) pre-qemu
 	@echo "***"
 	@echo "*** Now run 'gdb'." 1>&2
 	@echo "***"
 	$(QEMU) $(QEMUOPTS) -S
 
-qemu-nox-gdb: $(IMAGES) .gdbinit
+qemu-nox-gdb: $(IMAGES) pre-qemu
 	@echo "***"
 	@echo "*** Now run 'gdb'." 1>&2
 	@echo "***"
@@ -170,7 +179,9 @@ clean:
 	rm -rf $(OBJDIR) .gdbinit jos.in qemu.log
 
 realclean: clean
-	rm -rf lab$(LAB).tar.gz jos.out
+	rm -rf lab$(LAB).tar.gz \
+		jos.out $(wildcard jos.out.*) \
+		qemu.pcap $(wildcard qemu.pcap.*)
 
 distclean: realclean
 	rm -rf conf/gcc.mk
@@ -179,21 +190,33 @@ ifneq ($(V),@)
 GRADEFLAGS += -v
 endif
 
-grade: $(LABSETUP)grade-lab$(LAB).sh
+grade:
 	@echo $(MAKE) clean
 	@$(MAKE) clean || \
 	  (echo "'make clean' failed.  HINT: Do you have another running instance of JOS?" && exit 1)
-	$(MAKE) all
-	sh $(LABSETUP)grade-lab$(LAB).sh $(GRADEFLAGS)
+	./grade-lab$(LAB) $(GRADEFLAGS)
 
-handin: tarball
-	@echo Please visit http://pdos.csail.mit.edu/6.828/submit/
-	@echo and upload lab$(LAB)-handin.tar.gz.  Thanks!
+handin: handin-check
+	@if test -n "`git config remote.handin.url`"; then \
+		echo "Hand in to remote repository using 'git push handin HEAD' ..."; \
+		if ! git push -f handin HEAD; then \
+            echo ; \
+			echo "Hand in failed."; \
+			echo "As an alternative, please run 'make tarball'"; \
+			echo "and visit http://pdos.csail.mit.edu/6.828/submit/"; \
+			echo "to upload lab$(LAB)-handin.tar.gz.  Thanks!"; \
+			false; \
+		fi; \
+    else \
+		echo "Hand-in repository is not configured."; \
+		echo "Please run 'make handin-prep' first.  Thanks!"; \
+		false; \
+	fi
 
-tarball:
+handin-check:
 	@if test "$$(git symbolic-ref HEAD)" != refs/heads/lab$(LAB); then \
 		git branch; \
-		read -p "You are not on the lab$(LAB) branch.  Handin the current branch? [y/N] " r; \
+		read -p "You are not on the lab$(LAB) branch.  Hand-in the current branch? [y/N] " r; \
 		test "$$r" = y; \
 	fi
 	@if ! git diff-files --quiet || ! git diff-index --quiet --cached HEAD; then \
@@ -207,28 +230,28 @@ tarball:
 		read -p "Untracked files will not be handed in.  Continue? [y/N] " r; \
 		test "$$r" = y; \
 	fi
+
+tarball: handin-check
 	git archive --format=tar HEAD | gzip > lab$(LAB)-handin.tar.gz
 
-# For test runs
-prep-%:
-	$(V)rm -f $(OBJDIR)/kern/init.o $(IMAGES)
-	$(V)$(MAKE) "DEFS=-DTEST=`case $* in *_*) echo $*;; *) echo user_$*;; esac`" $(IMAGES)
-	$(V)rm -f $(OBJDIR)/kern/init.o
+handin-prep:
+	@./handin-prep
 
-run-%-nox-gdb: .gdbinit
-	$(V)$(MAKE) --no-print-directory prep-$*
+# For test runs
+
+prep-%:
+	$(V)$(MAKE) "INIT_CFLAGS=${INIT_CFLAGS} -DTEST=`case $* in *_*) echo $*;; *) echo user_$*;; esac`" $(IMAGES)
+
+run-%-nox-gdb: prep-% pre-qemu
 	$(QEMU) -nographic $(QEMUOPTS) -S
 
-run-%-gdb: .gdbinit
-	$(V)$(MAKE) --no-print-directory prep-$*
+run-%-gdb: prep-% pre-qemu
 	$(QEMU) $(QEMUOPTS) -S
 
-run-%-nox: .gdbinit
-	$(V)$(MAKE) --no-print-directory prep-$*
+run-%-nox: prep-% pre-qemu
 	$(QEMU) -nographic $(QEMUOPTS)
 
-run-%: .gdbinit
-	$(V)$(MAKE) --no-print-directory prep-$*
+run-%: prep-% pre-qemu
 	$(QEMU) $(QEMUOPTS)
 
 # This magic automatically generates makefile dependencies
@@ -245,4 +268,4 @@ always:
 	@:
 
 .PHONY: all always \
-	handin tarball clean realclean distclean grade
+	handin tarball clean realclean distclean grade handin-prep handin-check

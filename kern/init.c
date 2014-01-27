@@ -54,11 +54,6 @@ i386_init(void)
 	// Starting non-boot CPUs
 	boot_aps();
 
-	// Should always have idle processes at first.
-	int i;
-	for (i = 0; i < NCPU; i++)
-		ENV_CREATE(user_idle, ENV_TYPE_IDLE);
-
 #if defined(TEST)
 	// Don't touch -- used by grading script!
 	ENV_CREATE(TEST, ENV_TYPE_USER);
@@ -82,7 +77,7 @@ boot_aps(void)
 {
 	extern unsigned char mpentry_start[], mpentry_end[];
 	void *code;
-	struct Cpu *c;
+	struct CpuInfo *c;
 
 	// Write entry code to unused memory at MPENTRY_PADDR
 	code = KADDR(MPENTRY_PADDR);
@@ -155,7 +150,7 @@ _panic(const char *file, int line, const char *fmt,...)
 	va_end(ap);
 
 	// Jacky 140103: print back trace in panic
-	mon_backtrace(0,0,0);
+	//mon_backtrace(0,0,0);
 dead:
 	/* break into the kernel monitor */
 	while (1)

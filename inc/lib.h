@@ -27,7 +27,7 @@ void	umain(int argc, char **argv);
 extern const char *binaryname;
 extern const volatile struct Env *thisenv;
 extern const volatile struct Env envs[NENV];
-extern const volatile struct Page pages[];
+extern const volatile struct PageInfo pages[];
 
 // exit.c
 void	exit(void);

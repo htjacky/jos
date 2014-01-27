@@ -10,8 +10,8 @@
 #include <kern/cpu.h>
 #include <kern/pmap.h>
 
-struct Cpu cpus[NCPU];
-struct Cpu *bootcpu;
+struct CpuInfo cpus[NCPU];
+struct CpuInfo *bootcpu;
 int ismp;
 int ncpu;
 
@@ -175,7 +175,7 @@ mp_init(void)
 	if ((conf = mpconfig(&mp)) == 0)
 		return;
 	ismp = 1;
-	lapic = (uint32_t *)conf->lapicaddr;
+	lapicaddr = conf->lapicaddr;
 
 	for (p = conf->entries, i = 0; i < conf->entry; i++) {
 		switch (*p) {
@@ -209,7 +209,7 @@ mp_init(void)
 	if (!ismp) {
 		// Didn't like what we found; fall back to no MP.
 		ncpu = 1;
-		lapic = NULL;
+		lapicaddr = 0;
 		cprintf("SMP: configuration not found, SMP disabled\n");
 		return;
 	}

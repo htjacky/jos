@@ -126,7 +126,7 @@ trap_init_percpu(void)
 	//
 	// Hints:
 	//   - The macro "thiscpu" always refers to the current CPU's
-	//     struct Cpu;
+	//     struct CpuInfo;
 	//   - The ID of the current CPU is given by cpunum() or
 	//     thiscpu->cpu_id;
 	//   - Use "thiscpu->cpu_ts" as the TSS for the current CPU,
@@ -264,12 +264,14 @@ trap(struct Trapframe *tf)
 	if (panicstr)
 		asm volatile("hlt");
 
+	// Re-acqurie the big kernel lock if we were halted in
+	// sched_yield()
+	if (xchg(&thiscpu->cpu_status, CPU_STARTED) == CPU_HALTED)
+		lock_kernel();
 	// Check that interrupts are disabled.  If this assertion
 	// fails, DO NOT be tempted to fix it by inserting a "cli" in
 	// the interrupt path.
 	assert(!(read_eflags() & FL_IF));
-
-	cprintf("Incoming TRAP frame at %p\n", tf);
 
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.
@@ -288,7 +290,6 @@ trap(struct Trapframe *tf)
 		// Copy trap frame (which is currently on the stack)
 		// into 'curenv->env_tf', so that running the environment
 		// will restart at the trap point.
-		assert(curenv);
 		curenv->env_tf = *tf;
 		// The trapframe on the stack should be ignored from here on.
 		tf = &curenv->env_tf;

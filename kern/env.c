@@ -168,7 +168,7 @@ static int
 env_setup_vm(struct Env *e)
 {
 	int i;
-	struct Page *p = NULL;
+	struct PageInfo *p = NULL;
 
 	// Allocate a page for the page directory
 	if (!(p = page_alloc(ALLOC_ZERO)))
@@ -293,7 +293,7 @@ region_alloc(struct Env *e, void *va, size_t len)
 	la = (uint32_t)ROUNDDOWN(va, PGSIZE);
 
 	uint32_t size = 0;
-	struct Page *p = NULL;
+	struct PageInfo *p = NULL;
 	for(size = 0;size < (ua - la);size += PGSIZE) {
 		if (!(p = page_alloc(ALLOC_ZERO)))
 			panic("page allocation failed!\n");

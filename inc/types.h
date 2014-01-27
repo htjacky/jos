@@ -6,7 +6,8 @@
 #endif
 
 // Represents true-or-false values
-typedef int bool;
+typedef _Bool bool;
+enum { false, true };
 
 // Explicitly-sized versions of integer types
 typedef __signed char int8_t;

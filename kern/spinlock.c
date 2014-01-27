@@ -26,8 +26,7 @@ get_caller_pcs(uint32_t pcs[])
 
 	ebp = (uint32_t *)read_ebp();
 	for (i = 0; i < 10; i++){
-		if (ebp == 0 || ebp < (uint32_t *)ULIM
-		    || ebp >= (uint32_t *)IOMEMBASE)
+		if (ebp == 0 || ebp < (uint32_t *)ULIM)
 			break;
 		pcs[i] = ebp[1];          // saved %eip
 		ebp = (uint32_t *)ebp[0]; // saved %ebp

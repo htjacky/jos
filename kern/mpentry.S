@@ -69,7 +69,7 @@ start32:
 	orl     $(CR0_PE|CR0_PG|CR0_WP), %eax
 	movl    %eax, %cr0
 
-	# Switch to the per-cpu stack allocated in mem_init()
+	# Switch to the per-cpu stack allocated in boot_aps()
 	movl    mpentry_kstack, %esp
 	movl    $0x0, %ebp       # nuke frame pointer
 

@@ -42,7 +42,8 @@
 #define TCCR    (0x0390/4)   // Timer Current Count
 #define TDCR    (0x03E0/4)   // Timer Divide Configuration
 
-volatile uint32_t *lapic;  // Initialized in mp.c
+physaddr_t lapicaddr;        // Initialized in mpconfig.c
+volatile uint32_t *lapic;
 
 static void
 lapicw(int index, int value)
@@ -54,8 +55,12 @@ lapicw(int index, int value)
 void
 lapic_init(void)
 {
-	if (!lapic) 
+	if (!lapicaddr)
 		return;
+
+	// lapicaddr is the physical address of the LAPIC's 4K MMIO
+	// region.  Map it in to virtual memory so we can access it.
+	lapic = mmio_map_region(lapicaddr, 4096);
 
 	// Enable local APIC; set spurious interrupt vector.
 	lapicw(SVR, ENABLE | (IRQ_OFFSET + IRQ_SPURIOUS));
