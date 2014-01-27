@@ -221,6 +221,7 @@ mem_init(void)
 			KSTKSIZE, 
 			PADDR(bootstack), // or bootstack, 
 			PTE_W);
+	// Jacky 140127 TODO: [KSTACKTOP-PTSIZE, KTSTACKTOP-KSTKSIZE);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
@@ -285,8 +286,25 @@ mem_init_mp(void)
 	//             Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
 	//
-	// LAB 4: Your code here:
-
+	// LAB 4: 140127
+/*	int i, j;
+	struct PageInfo *pp = NULL;
+	for (i = 0; i<NCPU; i++) {
+		for (j = 0; j < KSTKSIZE; j += PGSIZE) { 
+			pp = page_alloc(ALLOC_ZERO);
+			if (pp == NULL)
+				panic("Not enough memory for cpu%d stack",i);
+			page_insert(kern_pgdir, pp, (void *)(KSTACKTOP - i*(KSTKSIZE + KSTKGAP) + j), PTE_W);
+		}
+		&percpu_kstacks[i][0];
+	}
+*/
+	int kstacktop_i;
+	int i;
+	for (i = 0; i < NCPU; i++) {
+		kstacktop_i = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
+		boot_map_region(kern_pgdir, (uintptr_t)(kstacktop_i - KSTKSIZE), KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_W|PTE_P);
+	}
 }
 
 // --------------------------------------------------------------
@@ -328,13 +346,15 @@ page_init(void)
 	int i;
 	int lower_pgnum = PGNUM(IOPHYSMEM);
 	int upper_pgnum = PGNUM(ROUNDUP((int)boot_alloc(0) - KERNBASE,PGSIZE));
+	int mpentry_pgnum = PGNUM(MPENTRY_PADDR);
 	page_free_list = NULL;
 	for (i = 0; i < npages; i++) {
+		if ((i == 0) || ((i >= lower_pgnum) && (i < upper_pgnum)) || (i == mpentry_pgnum)) {
+			pages[i].pp_ref = 1;
+			pages[i].pp_link = NULL;
+			continue;
+		}
 		pages[i].pp_ref = 0;
-		if ((i >= lower_pgnum) && (i < upper_pgnum))
-			continue;
-		if (i == 0)
-			continue;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
 	}
@@ -627,8 +647,15 @@ mmio_map_region(physaddr_t pa, size_t size)
 	//
 	// Hint: The staff solution uses boot_map_region.
 	//
-	// Your code here:
-	panic("mmio_map_region not implemented");
+	// Jacky 140127
+
+	pa = ROUNDDOWN(pa, PGSIZE);
+	size = ROUNDUP(pa + size, PGSIZE) - pa;
+	boot_map_region(kern_pgdir, base, size, pa, PTE_PCD|PTE_PWT|PTE_W);
+	base += size;
+	if(base >= MMIOLIM)
+		panic("mmio_map_region not implemented");
+	return (void *)(base-size);
 }
 
 static uintptr_t user_mem_check_addr;
@@ -757,6 +784,7 @@ check_page_free_list(bool only_low_memory)
 
 	assert(nfree_basemem > 0);
 	assert(nfree_extmem > 0);
+	cprintf("%s(%d) succeeded!\n",__func__,only_low_memory);
 }
 
 //
