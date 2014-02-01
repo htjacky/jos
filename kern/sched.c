@@ -28,8 +28,61 @@ sched_yield(void)
 	// no runnable environments, simply drop through to the code
 	// below to halt the cpu.
 
-	// LAB 4: Your code here.
-
+	// LAB 4: Jacky 140128.
+	int i, pos = 0;
+	struct Env *thisenv = thiscpu->cpu_env;
+#if 0
+	if (thisenv == NULL)
+		thisenv = &envs[0];
+	cprintf("%s(),%d!\n",__func__,__LINE__);
+	// find the position of thisenv in envs[]
+	for (i = 0; i < NENV; i++) {
+		if (&envs[i] == thisenv) {
+			pos = i;
+			break;
+		}
+	}
+	cprintf("%s(),%d pos = %d!\n",__func__,__LINE__,pos);
+	for (i = (pos+1)%NENV; i != pos; i = (i+1)%NENV) {
+		if (envs[i].env_status == ENV_RUNNABLE) {
+			// Following are all done in env_run()
+			//c->cpu_env->env_status = ENV_RUNNABLE;
+			//c->cpu_env = &envs[i];
+			//unlock_kernel();
+cprintf("%s(),%d, i = %d!\n",__func__,__LINE__,i);
+			env_run(&envs[i]);
+		}
+	}
+	//if ((i == pos) && (thisenv->env_status == ENV_RUNNING)) {
+	if ((thisenv->env_status == ENV_RUNNING) || (thisenv->env_status == ENV_RUNNABLE)) {
+			//unlock_kernel();
+	cprintf("%s(),%d, run the orginal env, cpu = %d!\n",__func__,__LINE__,cpunum());
+			env_run(thisenv);
+	}
+#else
+	if (thisenv != NULL) {
+		// find the position of thisenv in envs[]
+		for (i = 0; i < NENV; i++) {
+			if (&envs[i] == thisenv) {
+				pos = i;
+				break;
+			}
+		}
+	}
+	for (i = (pos+1)%NENV; i != pos; i = (i+1)%NENV) {
+		if (envs[i].env_status == ENV_RUNNABLE) {
+			env_run(&envs[i]);
+		}
+	}
+	if (envs[i].env_status == ENV_RUNNABLE) { // envs[pos] will be exclusive by above loop
+		env_run(&envs[i]);
+	}
+	if (thisenv != NULL) {
+		if (thisenv->env_status == ENV_RUNNING) {
+			env_run(thisenv);
+		}
+	}
+#endif
 	// sched_halt never returns
 	sched_halt();
 }
@@ -49,6 +102,8 @@ sched_halt(void)
 		     envs[i].env_status == ENV_RUNNING))
 			break;
 	}
+	static int j = 0;
+	j++;
 	if (i == NENV) {
 		cprintf("No runnable environments in the system!\n");
 		while (1)
@@ -77,3 +132,4 @@ sched_halt(void)
 		"hlt\n"
 	: : "a" (thiscpu->cpu_ts.ts_esp0));
 }
+

@@ -14,7 +14,7 @@
 #include <kern/cpu.h>
 #include <kern/spinlock.h>
 
-static struct Taskstate ts;
+//static struct Taskstate ts;
 
 /* For debugging, so print_trapframe can distinguish between printing
  * a saved trapframe and printing the current trapframe and print some
@@ -142,14 +142,16 @@ trap_init_percpu(void)
 	//
 	// LAB 4: Jacky 140127
 	int cpu_i = thiscpu->cpu_id;
-	struct Taskstate ts;
+	//struct Taskstate ts;
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
 	thiscpu->cpu_ts.ts_esp0 = KSTACKTOP - cpu_i * (KSTKSIZE + KSTKGAP);
+//	thiscpu->cpu_ts.ts_esp0 = (int)percpu_kstacks[cpu_i] + KSTKSIZE;
 	thiscpu->cpu_ts.ts_ss0 = GD_KD;
 
 	// Initialize the TSS slot of the gdt.
-	gdt[(GD_TSS0 >> 3) + cpu_i] = SEG16(STS_T32A, (uint32_t) (&thiscpu->cpu_ts),
+	//gdt[(GD_TSS0 >> 3) + cpu_i] = SEG16(STS_T32A, (uint32_t) (&thiscpu->cpu_ts),
+	gdt[(GD_TSS0 >> 3) + cpu_i] = SEG16(STS_T32A, (uint32_t) (&(thiscpu->cpu_ts)),
 						sizeof(struct Taskstate), 0);
 	gdt[(GD_TSS0 >> 3) + cpu_i].sd_s = 0;
 
@@ -188,10 +190,10 @@ print_trapframe(struct Trapframe *tf)
 	cprintf("  eip  0x%08x\n", tf->tf_eip);
 	cprintf("  cs   0x----%04x\n", tf->tf_cs);
 	cprintf("  flag 0x%08x\n", tf->tf_eflags);
-	if ((tf->tf_cs & 3) != 0) {
+//	if ((tf->tf_cs & 3) != 0) {
 		cprintf("  esp  0x%08x\n", tf->tf_esp);
 		cprintf("  ss   0x----%04x\n", tf->tf_ss);
-	}
+//	}
 }
 
 void
@@ -268,7 +270,9 @@ trap(struct Trapframe *tf)
 	// Re-acqurie the big kernel lock if we were halted in
 	// sched_yield()
 	if (xchg(&thiscpu->cpu_status, CPU_STARTED) == CPU_HALTED)
+	{
 		lock_kernel();
+	}
 	// Check that interrupts are disabled.  If this assertion
 	// fails, DO NOT be tempted to fix it by inserting a "cli" in
 	// the interrupt path.
@@ -279,6 +283,8 @@ trap(struct Trapframe *tf)
 		// Acquire the big kernel lock before doing any
 		// serious kernel work.
 		// LAB 4: Your code here.
+		if (tf->tf_cs != GD_KT)
+			lock_kernel();
 		assert(curenv);
 
 		// Garbage collect if current enviroment is a zombie

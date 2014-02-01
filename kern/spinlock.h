@@ -27,15 +27,18 @@ void spin_unlock(struct spinlock *lk);
 
 extern struct spinlock kernel_lock;
 
+#include <kern/cpu.h>
 static inline void
 lock_kernel(void)
 {
+	cprintf("%s(), cpu %d!!!!!!\n",__func__,cpunum());
 	spin_lock(&kernel_lock);
 }
 
 static inline void
 unlock_kernel(void)
 {
+	cprintf("%s(), cpu %d!!!!!!!\n",__func__,cpunum());
 	spin_unlock(&kernel_lock);
 
 	// Normally we wouldn't need to do this, but QEMU only runs

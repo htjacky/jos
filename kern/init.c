@@ -49,8 +49,8 @@ i386_init(void)
 	pic_init();
 
 	// Acquire the big kernel lock before waking up APs
-	// Your code here:
-
+	// Jacky 140127:
+	lock_kernel();
 	// Starting non-boot CPUs
 	boot_aps();
 
@@ -59,9 +59,31 @@ i386_init(void)
 	ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
 	// Touch all you want.
-	ENV_CREATE(user_primes, ENV_TYPE_USER);
-#endif // TEST*
+//	ENV_CREATE(user_primes, ENV_TYPE_USER);
+//char a[] = "test";
 
+/*
+char a[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+
+		int *p = (int *)a;
+
+		char b = *(p+1);
+int i=5, j=6;
+
+int a = i+++j;
+
+cprintf("i = %d, j = %d, a = %d!!!!!\n",i, j, a);
+
+int m = 0x12345678;
+char n = m;
+cprintf("m = %x;n = %x!!!!!\n",m, n);
+*/
+#endif // TEST*
+	ENV_CREATE(user_yield, ENV_TYPE_USER);
+	ENV_CREATE(user_yield, ENV_TYPE_USER);
+	ENV_CREATE(user_yield, ENV_TYPE_USER);
+	ENV_CREATE(user_yield, ENV_TYPE_USER);
+	
 	// Schedule and run the first user environment!
 	sched_yield();
 }
@@ -116,9 +138,10 @@ mp_main(void)
 	// only one CPU can enter the scheduler at a time!
 	//
 	// Your code here:
-
+	lock_kernel();
+	sched_yield();
 	// Remove this after you finish Exercise 4
-	for (;;);
+	//for (;;);
 }
 
 /*
