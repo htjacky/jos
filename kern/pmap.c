@@ -568,7 +568,7 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 		*pte_store = pte;
 	}
 	if ((pte == NULL) || ((*pte & PTE_P) == 0)) {
- 		cprintf("%s,%d, no page mapped at va!\n",__func__,__LINE__);
+// 		cprintf("%s,%d, no page mapped at 0x%x!\n",__func__,__LINE__,va);
 		return NULL;
 	}
 	return pa2page(PTE_ADDR(*pte));

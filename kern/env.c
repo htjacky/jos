@@ -365,9 +365,6 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Jacky 14020.
-//	int32_t d = 0x20000, fs = 4, s = 0x1000000;
-		//asm volatile("cld; rep movsb\n"
-		//	:: "D" (d), "S" (s), "c" (fs) : "cc", "memory");
 
 	lcr3(PADDR(e->env_pgdir));
 	struct Elf *elf = (struct Elf *)binary;
