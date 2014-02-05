@@ -366,8 +366,30 @@ page_fault_handler(struct Trapframe *tf)
 	//   To change what the user environment runs, modify 'curenv->env_tf'
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
-	// LAB 4: Your code here.
+	// LAB 4: Jacky 140203.
+	// 1. parameters check;
+	// 2. set up UTrapframe *utf;
+	// 3. branch the env_pgfault_upcall;
+	if (curenv->env_pgfault_upcall != NULL) {
+		struct UTrapframe *utf;
+		if (UXSTACKTOP - PGSIZE <= tf->tf_esp && tf->tf_esp < UXSTACKTOP) {
+			utf = (struct UTrapframe *)(tf->tf_esp - sizeof(struct UTrapframe) - 4);
+		} else {
+			utf = (struct UTrapframe *)(UXSTACKTOP - sizeof(struct UTrapframe));
+		}
+		user_mem_assert(curenv, utf, sizeof(struct UTrapframe), PTE_U|PTE_W);
+		utf->utf_fault_va	= fault_va;
+		utf->utf_err		= tf->tf_err;
+		utf->utf_eflags		= tf->tf_eflags;
+		utf->utf_esp		= tf->tf_esp;
+		utf->utf_regs		= tf->tf_regs;
+		utf->utf_esp		= tf->tf_esp;
+		utf->utf_eip		= tf->tf_eip;
 
+		curenv->env_tf.tf_eip	= (uint32_t)curenv->env_pgfault_upcall;
+		curenv->env_tf.tf_esp	= (uint32_t)utf;
+		env_run(curenv);
+	}
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);

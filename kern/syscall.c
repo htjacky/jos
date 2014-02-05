@@ -141,6 +141,16 @@ static int
 sys_env_set_pgfault_upcall(envid_t envid, void *func)
 {
 	// LAB 4: Jacky 140203.
+	struct Env *e = NULL;
+	int r = envid2env(envid, &e, 1);
+	if (r < 0) {
+	//if ((r < 0) || ((curenv->env_id != e->env_parent_id) && (curenv->env_id != e->env_id))) {
+		cprintf("%s() %d: r = %d", __func__,__LINE__,r);
+		return r;
+	}
+	e->env_pgfault_upcall = func;
+
+	return 0;
 }
 
 // Allocate a page of memory and map it at 'va' with permission

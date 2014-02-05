@@ -56,7 +56,7 @@ i386_init(void)
 
 #if defined(TEST)
 	// Don't touch -- used by grading script!
-	ENV_CREATE(TEST, ENV_TYPE_USER);
+//	ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
 	// Touch all you want.
 //	ENV_CREATE(user_primes, ENV_TYPE_USER);
@@ -80,7 +80,7 @@ cprintf("m = %x;n = %x!!!!!\n",m, n);
 */
 #endif // TEST*
 //	ENV_CREATE(user_yield, ENV_TYPE_USER);
-	ENV_CREATE(user_dumbfork, ENV_TYPE_USER);
+	ENV_CREATE(user_faultallocbad, ENV_TYPE_USER);
 	
 	// Schedule and run the first user environment!
 	sched_yield();
