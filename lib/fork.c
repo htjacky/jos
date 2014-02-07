@@ -24,7 +24,13 @@ pgfault(struct UTrapframe *utf)
 	//   Use the read-only page table mappings at uvpt
 	//   (see <inc/memlayout.h>).
 
-	// LAB 4: Your code here.
+	// LAB 4: Jacky 140207.
+	if ((err & FEC_WR) == 0) {
+		panic("%s(): the faulting access was not a write!\n",__func__);
+	}
+	if (((uvpd[PDX(addr)] & PTE_P) == 0) || ((uvpt[PGNUM(addr)] & (PTE_W | PTE_COW)) == 0)) {
+		panic("%s(): the faulting access was not a write or copy-on-write page!\n");
+	}
 
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
@@ -33,9 +39,15 @@ pgfault(struct UTrapframe *utf)
 	//   You should make three system calls.
 	//   No need to explicitly delete the old page's mapping.
 
-	// LAB 4: Your code here.
-
-	panic("pgfault not implemented");
+	// LAB 4: Jacky 140207
+	if ((r = sys_page_alloc(0, (void *)PFTEMP, PTE_P|PTE_U|PTE_W)) < 0) {
+		panic("%s(), alloc failed, ERROR = %e",__func__,r);
+	}
+	addr = ROUNDDOWN(addr, PGSIZE);
+	memmove((void *)PFTEMP, addr, PGSIZE);
+	if ((r = sys_page_map(0, (void *)PFTEMP, 0, addr, PTE_P|PTE_W|PTE_U)) < 0) {
+		panic("%s(), sys_page_map failed, ERROR = %e",__func__,r);
+	}
 }
 
 //
@@ -53,9 +65,21 @@ static int
 duppage(envid_t envid, unsigned pn)
 {
 	int r;
+	// LAB 4: Jacky 140207
+	void *addr = (void *)(pn * PGSIZE);
+	pte_t pte = uvpt[PGNUM(addr)];
 
-	// LAB 4: Your code here.
-	panic("duppage not implemented");
+	if ((pte & PTE_W) > 0 || (pte & PTE_COW) > 0) {
+		// map the va into the envid's address spaces
+		if ((r = sys_page_map(0, addr, envid, addr, PTE_COW|PTE_P|PTE_U)) < 0)
+			panic("%s,%d failed: %e",__func__,__LINE__,r);
+		if ((r = sys_page_map(0, addr, 0, addr, PTE_COW|PTE_P|PTE_U)) < 0)
+			panic("%s,%d failed: %e",__func__,__LINE__,r);
+	} else {
+		if ((r = sys_page_map(0, addr, envid, addr, PTE_P|PTE_U)) < 0)
+			panic("%s,%d failed: %e",__func__,__LINE__,r);
+	}
+
 	return 0;
 }
 
@@ -78,8 +102,35 @@ duppage(envid_t envid, unsigned pn)
 envid_t
 fork(void)
 {
-	// LAB 4: Your code here.
-	panic("fork not implemented");
+	// LAB 4: Jacky 140207.
+	set_pgfault_handler(pgfault);
+	static envid_t eid;
+	if ((eid = sys_exofork()) < 0) {
+		panic("%s,sys_exofork failed: %e\n",__func__,eid);
+	}
+	if (eid == 0) { // the child env
+		thisenv = &envs[ENVX(sys_getenvid())];
+		return 0;
+	} 
+	
+	// the parent env
+	uint32_t addr;
+	int r;
+	for (addr = UTEXT; addr < UXSTACKTOP - PGSIZE; addr += PGSIZE) {
+		if ((uvpd[PDX(addr)] & PTE_P) > 0
+			&& (uvpt[PGNUM(addr)] & PTE_P) > 0
+			&& (uvpt[PGNUM(addr)] & PTE_W) > 0
+			&& (uvpt[PGNUM(addr)] & PTE_COW) > 0)
+			duppage(eid, PGNUM(addr));
+	}
+	struct Env *e = (struct Env *)&envs[ENVX(sys_getenvid())];
+	if ((r = sys_page_alloc(eid, (void *)(UXSTACKTOP-PGSIZE), PTE_P|PTE_U|PTE_W)) < 0)
+		panic("%s() sys_page_alloc failed: %e",__func__,r);
+	extern void _pgfault_upcall(void);
+	sys_env_set_pgfault_upcall(eid, _pgfault_upcall);
+	if ((r = sys_env_set_status(eid, ENV_RUNNABLE)) < 0)
+		panic("%s(), sys_env_set_status failed:%e",__func__,r);
+	return eid;
 }
 
 // Challenge!
