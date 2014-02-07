@@ -119,9 +119,11 @@ fork(void)
 	for (addr = UTEXT; addr < UXSTACKTOP - PGSIZE; addr += PGSIZE) {
 		if ((uvpd[PDX(addr)] & PTE_P) > 0
 			&& (uvpt[PGNUM(addr)] & PTE_P) > 0
-			&& (uvpt[PGNUM(addr)] & PTE_W) > 0
-			&& (uvpt[PGNUM(addr)] & PTE_COW) > 0)
+			//&& (uvpt[PGNUM(addr)] & PTE_W) > 0
+			&& (uvpt[PGNUM(addr)] & PTE_U) > 0) {
+	//		cprintf("%s(),%d, env %x, uvpd[%x] = %x, uvpt[%x] = %x\n",__func__,__LINE__, eid, PDX(addr), uvpd[PDX(addr)], PGNUM(addr), uvpt[PGNUM(addr)] );
 			duppage(eid, PGNUM(addr));
+		}
 	}
 	struct Env *e = (struct Env *)&envs[ENVX(sys_getenvid())];
 	if ((r = sys_page_alloc(eid, (void *)(UXSTACKTOP-PGSIZE), PTE_P|PTE_U|PTE_W)) < 0)

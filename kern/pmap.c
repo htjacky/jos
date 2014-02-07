@@ -533,10 +533,10 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	if (pg == pp) {
 		pte = pgdir_walk(pgdir, va, 1);
 		pte[0] = page2pa(pp)|perm|PTE_P;
-		cprintf("%s,%d, there is a same page mapped at va = 0x%x, *pte = 0x%x, page = 0x%x!\n",__func__,__LINE__, va, *pte, pp);
+//		cprintf("%s,%d, there is a same page mapped at va = 0x%x, *pte = 0x%x, page = 0x%x!\n",__func__,__LINE__, va, *pte, pp);
 		return 0;
 	} else if(pg != NULL) {
- 		cprintf("%s,%d, there is already another page mapped at 0x%x: pte = 0x%x, page2pa(0x%x) = 0x%x!\n",__func__,__LINE__, va, pte, pp, page2pa(pp));
+ //		cprintf("%s,%d, there is already another page mapped at 0x%x: pte = 0x%x, page2pa(0x%x) = 0x%x!\n",__func__,__LINE__, va, pte, pp, page2pa(pp));
 		page_remove(pgdir, va);
 	}
 	pte = pgdir_walk(pgdir, va, 1);
@@ -692,6 +692,8 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 		pte = pgdir_walk(curenv->env_pgdir, (void *)iter, 0);
 		if ((pte == NULL) || ((*pte & perm) != perm)) {
 			cprintf("Need perm = %x, but pte is %x!\n", perm, pte);
+			if (pte != NULL)
+				cprintf("Need perm = %x, but *pte is 0x%x!\n", perm, *pte);
 			user_mem_check_addr = iter;
 			return -E_FAULT;
 		}
