@@ -91,6 +91,22 @@ trap_init(void)
 	extern void Entry_Machine_Check();
 	extern void Entry_Simd_Floating_Point_Err();
 	extern void Entry_System_Call();
+	extern void Entry_IRQ_Routine0();
+	extern void Entry_IRQ_Routine1();
+	extern void Entry_IRQ_Routine2();
+	extern void Entry_IRQ_Routine3();
+	extern void Entry_IRQ_Routine4();
+	extern void Entry_IRQ_Routine5();
+	extern void Entry_IRQ_Routine6();
+	extern void Entry_IRQ_Routine7();
+	extern void Entry_IRQ_Routine8();
+	extern void Entry_IRQ_Routine9();
+	extern void Entry_IRQ_Routine10();
+	extern void Entry_IRQ_Routine11();
+	extern void Entry_IRQ_Routine12();
+	extern void Entry_IRQ_Routine13();
+	extern void Entry_IRQ_Routine14();
+	extern void Entry_IRQ_Routine15();
 
 	SETGATE(idt[T_DIVIDE], 0, GD_KT, Entry_Divide_Error, 0);
 	SETGATE(idt[T_DEBUG], 0, GD_KT, Entry_Debug_Exception, 0);
@@ -111,6 +127,22 @@ trap_init(void)
 	SETGATE(idt[T_MCHK], 0, GD_KT, Entry_Machine_Check, 0);
 	SETGATE(idt[T_SIMDERR], 0, GD_KT, Entry_Simd_Floating_Point_Err, 0);
 	SETGATE(idt[T_SYSCALL], 0, GD_KT, Entry_System_Call, 3);
+	SETGATE(idt[IRQ_OFFSET+0], 0, GD_KT, Entry_IRQ_Routine0, 0);
+	SETGATE(idt[IRQ_OFFSET+1], 0, GD_KT, Entry_IRQ_Routine1, 0);
+	SETGATE(idt[IRQ_OFFSET+2], 0, GD_KT, Entry_IRQ_Routine2, 0);
+	SETGATE(idt[IRQ_OFFSET+3], 0, GD_KT, Entry_IRQ_Routine3, 0);
+	SETGATE(idt[IRQ_OFFSET+4], 0, GD_KT, Entry_IRQ_Routine4, 0);
+	SETGATE(idt[IRQ_OFFSET+5], 0, GD_KT, Entry_IRQ_Routine5, 0);
+	SETGATE(idt[IRQ_OFFSET+6], 0, GD_KT, Entry_IRQ_Routine6, 0);
+	SETGATE(idt[IRQ_OFFSET+7], 0, GD_KT, Entry_IRQ_Routine7, 0);
+	SETGATE(idt[IRQ_OFFSET+8], 0, GD_KT, Entry_IRQ_Routine8, 0);
+	SETGATE(idt[IRQ_OFFSET+9], 0, GD_KT, Entry_IRQ_Routine9, 0);
+	SETGATE(idt[IRQ_OFFSET+10], 0, GD_KT, Entry_IRQ_Routine10, 0);
+	SETGATE(idt[IRQ_OFFSET+11], 0, GD_KT, Entry_IRQ_Routine11, 0);
+	SETGATE(idt[IRQ_OFFSET+12], 0, GD_KT, Entry_IRQ_Routine12, 0);
+	SETGATE(idt[IRQ_OFFSET+13], 0, GD_KT, Entry_IRQ_Routine13, 0);
+	SETGATE(idt[IRQ_OFFSET+14], 0, GD_KT, Entry_IRQ_Routine14, 0);
+	SETGATE(idt[IRQ_OFFSET+15], 0, GD_KT, Entry_IRQ_Routine15, 0);
 	// Per-CPU setup 
 	trap_init_percpu();
 }

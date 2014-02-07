@@ -261,8 +261,8 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	// You will set e->env_tf.tf_eip later.
 
 	// Enable interrupts while in user mode.
-	// LAB 4: Your code here.
-
+	// LAB 4: Jacky 20140208.
+	e->env_tf.tf_eflags |= FL_IF;
 	// Clear the page fault handler until user installs one.
 	e->env_pgfault_upcall = 0;
 

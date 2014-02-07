@@ -15,7 +15,5 @@
 /conf/lab.mk
 /bochs.log
 /cscope.out
-/kern/*.swp
-/lib/*.swp
-/user/*.swp
+*.swp
 tags
