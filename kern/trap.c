@@ -222,10 +222,10 @@ print_trapframe(struct Trapframe *tf)
 	cprintf("  eip  0x%08x\n", tf->tf_eip);
 	cprintf("  cs   0x----%04x\n", tf->tf_cs);
 	cprintf("  flag 0x%08x\n", tf->tf_eflags);
-//	if ((tf->tf_cs & 3) != 0) {
+	if ((tf->tf_cs & 3) != 0) {
 		cprintf("  esp  0x%08x\n", tf->tf_esp);
 		cprintf("  ss   0x----%04x\n", tf->tf_ss);
-//	}
+	}
 }
 
 void
@@ -266,6 +266,9 @@ trap_dispatch(struct Trapframe *tf)
 			}
 			tf->tf_regs.reg_eax = r;
 			return;
+	// Handle clock interrupts. Don't forget to acknowledge the
+	// interrupt using lapic_eoi() before calling the scheduler!
+	// LAB 4: Your code here.
 		case IRQ_OFFSET + IRQ_TIMER:
 			lapic_eoi();
 			sched_yield();
@@ -278,9 +281,9 @@ trap_dispatch(struct Trapframe *tf)
 			break;
 	}
 
-	// Handle clock interrupts. Don't forget to acknowledge the
-	// interrupt using lapic_eoi() before calling the scheduler!
-	// LAB 4: Your code here.
+
+	// Handle keyboard and serial interrupts.
+	// LAB 5: Your code here.
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);

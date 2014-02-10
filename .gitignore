@@ -6,9 +6,12 @@
 /jos.cmd
 /.gdbinit
 /wget.log
+/qemu.pcap
+/qemu.pcap.*
 /slirp.cap
 /qemu.out
 /qemu.log
+/gradelib.pyc
 /lab?-handin.tar.gz
 /lab?/
 /sol?/

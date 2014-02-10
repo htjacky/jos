@@ -27,7 +27,7 @@ void spin_unlock(struct spinlock *lk);
 
 extern struct spinlock kernel_lock;
 
-#include <kern/cpu.h>
+//#include <kern/cpu.h>
 static inline void
 lock_kernel(void)
 {
