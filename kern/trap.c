@@ -261,8 +261,9 @@ trap_dispatch(struct Trapframe *tf)
 				tf->tf_regs.reg_ebx,
 				tf->tf_regs.reg_edi,
 				tf->tf_regs.reg_esi);
-			if (r < 0)
-				panic("%s:%d with error code = %d\n", __func__,__LINE__,r);
+			if (r < 0) {
+			//	cprintf("%s:%d with error code = %d\n", __func__,__LINE__,r);
+			}
 			tf->tf_regs.reg_eax = r;
 			return;
 		case IRQ_OFFSET + IRQ_TIMER:
