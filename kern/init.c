@@ -82,11 +82,11 @@ cprintf("i = %d, j = %d, a = %d!!!!!\n",i, j, a);
 int m = 0x12345678;
 char n = m;
 cprintf("m = %x;n = %x!!!!!\n",m, n);
-*/
 	unsigned int a = 0xa0;
 	cprintf("a = 0x%x, bit count = %d!!!!\n", a , bit_count(a));
 	char b[5] = { 'e', 'd', 'c', 'b', 'a'};
 	cprintf("b[2] = %c, %c,%c,%c\n",b[2],*b+2, *(b+2), (b+2));
+*/
 #endif // TEST*
 //	ENV_CREATE(user_yield, ENV_TYPE_USER);
 //	ENV_CREATE(user_forktree, ENV_TYPE_USER);
