@@ -16,7 +16,12 @@
 #include <kern/spinlock.h>
 
 static void boot_aps(void);
-
+int bit_count(unsigned int a) {
+//	unsigned int b = a - ((a>>1) & 0x55);
+	a = (a&0x55) + ((a>>1)&0x55);
+	a = (a&0x33) + ((a>>2)&0x33);
+	return (a&0xf) + (a>>4);
+}
 
 void
 i386_init(void)
@@ -78,13 +83,18 @@ int m = 0x12345678;
 char n = m;
 cprintf("m = %x;n = %x!!!!!\n",m, n);
 */
+	unsigned int a = 0xa0;
+	cprintf("a = 0x%x, bit count = %d!!!!\n", a , bit_count(a));
+	char b[5] = { 'e', 'd', 'c', 'b', 'a'};
+	cprintf("b[2] = %c, %c,%c,%c\n",b[2],*b+2, *(b+2), (b+2));
 #endif // TEST*
 //	ENV_CREATE(user_yield, ENV_TYPE_USER);
 //	ENV_CREATE(user_forktree, ENV_TYPE_USER);
 //	ENV_CREATE(user_spin, ENV_TYPE_USER);
-	ENV_CREATE(user_pingpong, ENV_TYPE_USER);
-	ENV_CREATE(user_primes, ENV_TYPE_USER);
-	
+//	ENV_CREATE(user_pingpong, ENV_TYPE_USER);
+//	ENV_CREATE(user_primes, ENV_TYPE_USER);
+	ENV_CREATE(fs_fs, ENV_TYPE_FS);	
+	ENV_CREATE(user_hello, ENV_TYPE_USER);	
 	// Schedule and run the first user environment!
 	sched_yield();
 }
