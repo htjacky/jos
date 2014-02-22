@@ -94,7 +94,7 @@ cprintf("m = %x;n = %x!!!!!\n",m, n);
 //	ENV_CREATE(user_pingpong, ENV_TYPE_USER);
 //	ENV_CREATE(user_primes, ENV_TYPE_USER);
 	ENV_CREATE(fs_fs, ENV_TYPE_FS);	
-	ENV_CREATE(user_hello, ENV_TYPE_USER);	
+	ENV_CREATE(user_spawnhello, ENV_TYPE_USER);	
 	// Schedule and run the first user environment!
 	sched_yield();
 }

@@ -100,8 +100,10 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 	// must be either the current environment
 	// or an immediate child of the current environment.
 	if (checkperm && e != curenv && e->env_parent_id != curenv->env_id) {
-		*env_store = 0;
-		return -E_BAD_ENV;
+		if ((e->env_type != ENV_TYPE_FS) && (curenv->env_type != ENV_TYPE_FS)) {  // Jacky 140222 dirty hack to help fsipc between fs and other user env.
+			*env_store = 0;
+			return -E_BAD_ENV;
+		}
 	}
 
 	*env_store = e;

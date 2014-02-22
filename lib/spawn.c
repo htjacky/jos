@@ -84,7 +84,6 @@ spawn(const char *prog, const char **argv)
 	//     correct initial eip and esp values in the child.
 	//
 	//   - Start the child process running with sys_env_set_status().
-
 	if ((r = open(prog, O_RDONLY)) < 0)
 		return r;
 	fd = r;
@@ -106,7 +105,6 @@ spawn(const char *prog, const char **argv)
 	// Set up trap frame, including initial stack.
 	child_tf = envs[ENVX(child)].env_tf;
 	child_tf.tf_eip = elf->e_entry;
-
 	if ((r = init_stack(child, argv, &child_tf.tf_esp)) < 0)
 		return r;
 

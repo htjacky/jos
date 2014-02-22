@@ -139,10 +139,21 @@ sys_env_set_status(envid_t envid, int status)
 static int
 sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 {
-	// LAB 5: Your code here.
+	// LAB 5: Jacky 140221.
 	// Remember to check whether the user has supplied us with a good
 	// address!
-	panic("sys_env_set_trapframe not implemented");
+	struct Env *e;
+	int r = envid2env(envid, &e, 1);
+	if (r < 0){
+		cprintf("%s(),%d: return %d!\n",__func__,__LINE__,r);
+		return r;
+	}
+//	memmove((void *)(&e->env_tf), (void *)tf, sizeof(struct Trapframe));
+	user_mem_check(e, tf, sizeof(struct Trapframe), PTE_U);
+	e->env_tf = *tf;
+	e->env_tf.tf_cs = GD_UT | 3;
+	e->env_tf.tf_eflags |= FL_IF;
+	return 0;
 }
 
 // Set the page fault upcall for 'envid' by modifying the corresponding struct
@@ -253,7 +264,7 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	pte_t *pte;
 	struct Env *srce,*dste;
 	if ((envid2env(srcenvid, &srce, 1) < 0) || (envid2env(dstenvid, &dste, 1) < 0)) {
-		cprintf("%s(),%d: return !\n",__func__,__LINE__);
+		cprintf("%s(),%d: %d, %d!\n",__func__,__LINE__,envid2env(srcenvid, &srce, 1),envid2env(dstenvid, &dste, 1));
 		return -E_BAD_ENV;
 	}
 	struct PageInfo *p = page_lookup(srce->env_pgdir, srcva, &pte);
@@ -336,9 +347,11 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	int r = 0;
 	struct Env *env = NULL;
 	if ((r = envid2env(envid, &env, 0)) < 0) {
+		cprintf("%s()%d: envid = %d\n",__func__,__LINE__,envid);
 		return -E_BAD_ENV;
 	}
 	if ((env->env_ipc_recving != true) || (env->env_ipc_from != 0)) {
+		cprintf("%s()%d: envid = %d\n",__func__,__LINE__,envid);
 		return -E_IPC_NOT_RECV;
 	}
 	env->env_ipc_perm = 0;
@@ -442,6 +455,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			break;
 		case SYS_ipc_recv:
 			r = sys_ipc_recv((void *)a1);
+			break;
+		case SYS_env_set_trapframe:
+			r = sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);
 			break;
 		default:
 			r = -E_INVAL;
