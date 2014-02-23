@@ -598,7 +598,7 @@ page_remove(pde_t *pgdir, void *va)
 	if(pa) {
 		page_decref(pa);
 	} else {
- 		cprintf("%s,%d, no page mapped at va!\n",__func__,__LINE__);
+ 		//cprintf("%s,%d, no page mapped at va!\n",__func__,__LINE__);
 	}
 	*pte = 0;
 	tlb_invalidate(pgdir,va);

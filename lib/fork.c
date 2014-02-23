@@ -69,7 +69,11 @@ duppage(envid_t envid, unsigned pn)
 	void *addr = (void *)(pn * PGSIZE);
 	pte_t pte = uvpt[PGNUM(addr)];
 
-	if ((pte & PTE_W) > 0 || (pte & PTE_COW) > 0) {
+	// LAB 5: Jacky 140223
+	if ((pte & PTE_SHARE) > 0) {
+		if ((r = sys_page_map(0, addr, envid, addr, (pte & PTE_SYSCALL))) < 0)
+			panic("%s,%d failed: %e\n",__func__,__LINE__,r);
+	} else if ((pte & PTE_W) > 0 || (pte & PTE_COW) > 0) {
 		// map the va into the envid's address spaces
 		if ((r = sys_page_map(0, addr, envid, addr, PTE_COW|PTE_P|PTE_U)) < 0)
 			panic("%s,%d failed: %e",__func__,__LINE__,r);

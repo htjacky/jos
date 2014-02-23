@@ -351,7 +351,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		return -E_BAD_ENV;
 	}
 	if ((env->env_ipc_recving != true) || (env->env_ipc_from != 0)) {
-		cprintf("%s()%d: envid = %d\n",__func__,__LINE__,envid);
+//		cprintf("%s()%d: envid = %d\n",__func__,__LINE__,envid);
 		return -E_IPC_NOT_RECV;
 	}
 	env->env_ipc_perm = 0;

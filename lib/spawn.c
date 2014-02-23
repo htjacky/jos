@@ -299,6 +299,15 @@ static int
 copy_shared_pages(envid_t child)
 {
 	// LAB 5: Your code here.
+	struct Env *env;
+	int r, i;
+//	if ((r = envid2env(child, &env, 1)) < 0)
+//		panic("%s() %d failed: %e\n",__func__,__LINE__,r);
+	for (i = 0; i < UTOP; i += PGSIZE) {
+		if ((uvpd[PDX(i)] & PTE_P) && (uvpt[PGNUM(i)] & PTE_P) && ((uvpt[PGNUM(i)] & PTE_SHARE) > 0)) {
+			if ((r = sys_page_map(0, (void *)i, child, (void *)i, (uvpt[PGNUM(i)] & PTE_SYSCALL))) < 0)
+				return r;
+		}
+	}
 	return 0;
 }
-
